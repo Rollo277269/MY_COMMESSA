@@ -1,0 +1,1 @@
+ALTER TABLE public.commessa_data ADD COLUMN importo_base_gara text DEFAULT NULL, ADD COLUMN ribasso text DEFAULT NULL;

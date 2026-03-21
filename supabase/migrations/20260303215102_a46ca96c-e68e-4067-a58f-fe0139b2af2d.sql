@@ -1,0 +1,1 @@
+ALTER TABLE public.fatture ADD COLUMN centro_auto_assigned boolean NOT NULL DEFAULT false;

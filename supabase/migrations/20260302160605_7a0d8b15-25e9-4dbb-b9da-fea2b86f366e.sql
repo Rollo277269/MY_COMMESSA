@@ -1,0 +1,1 @@
+ALTER TABLE public.cronoprogramma_phases ADD COLUMN cme_row_ids uuid[] DEFAULT '{}'::uuid[];

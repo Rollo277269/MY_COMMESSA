@@ -1,0 +1,1 @@
+ALTER TABLE public.commessa_data ADD COLUMN IF NOT EXISTS costo_manodopera text NULL;

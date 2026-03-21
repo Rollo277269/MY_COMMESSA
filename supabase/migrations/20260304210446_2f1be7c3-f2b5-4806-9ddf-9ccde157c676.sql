@@ -1,0 +1,1 @@
+ALTER TABLE public.scadenze ADD COLUMN numero TEXT;

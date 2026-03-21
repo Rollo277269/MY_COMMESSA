@@ -1,0 +1,1 @@
+ALTER TABLE public.documents ADD COLUMN subfolder text NULL DEFAULT NULL;

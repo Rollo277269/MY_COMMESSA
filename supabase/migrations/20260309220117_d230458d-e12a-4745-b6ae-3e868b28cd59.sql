@@ -1,0 +1,1 @@
+ALTER TABLE public.commessa_data ADD COLUMN ambiente_analisi jsonb NULL DEFAULT '{}'::jsonb;

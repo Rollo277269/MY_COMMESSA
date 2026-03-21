@@ -1,0 +1,1 @@
+ALTER TABLE public.fatture ADD COLUMN IF NOT EXISTS importo_incassato numeric NOT NULL DEFAULT 0;

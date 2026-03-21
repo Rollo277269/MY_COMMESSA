@@ -1,0 +1,131 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 25% 97%;
+    --foreground: 215 40% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 40% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 40% 12%;
+
+    --primary: 215 48% 38%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 20% 93%;
+    --secondary-foreground: 215 40% 18%;
+
+    --muted: 220 18% 95%;
+    --muted-foreground: 215 15% 46%;
+
+    --accent: 345 50% 42%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 4 76% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 18% 90%;
+    --input: 220 18% 90%;
+    --ring: 215 48% 38%;
+
+    --radius: 0.625rem;
+
+    --sidebar-background: 215 48% 25%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-primary: 345 50% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 48% 32%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 215 48% 20%;
+    --sidebar-ring: 345 50% 52%;
+
+    /* Chart tokens */
+    --chart-1: 215 48% 38%;
+    --chart-2: 345 50% 42%;
+    --chart-3: 152 56% 38%;
+    --chart-4: 262 55% 55%;
+    --chart-5: 38 92% 48%;
+
+    /* Semantic tokens */
+    --success: 152 56% 38%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 48%;
+    --warning-foreground: 215 40% 12%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+
+    --shadow-card: 0 1px 3px 0 hsl(215 40% 12% / 0.03), 0 1px 2px -1px hsl(215 40% 12% / 0.02);
+    --shadow-elevated: 0 10px 30px -8px hsl(215 40% 12% / 0.1), 0 4px 10px -4px hsl(215 40% 12% / 0.05);
+    --shadow-sidebar: 1px 0 0 0 hsl(215 40% 20%);
+  }
+
+  .dark {
+    --background: 215 35% 8%;
+    --foreground: 215 14% 93%;
+
+    --card: 215 30% 12%;
+    --card-foreground: 215 14% 93%;
+
+    --popover: 215 30% 12%;
+    --popover-foreground: 215 14% 93%;
+
+    --primary: 215 48% 50%;
+    --primary-foreground: 215 35% 8%;
+
+    --secondary: 215 25% 18%;
+    --secondary-foreground: 215 14% 93%;
+
+    --muted: 215 25% 16%;
+    --muted-foreground: 215 15% 55%;
+
+    --accent: 345 50% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 4 76% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 215 25% 20%;
+    --input: 215 25% 20%;
+    --ring: 215 48% 50%;
+
+    --sidebar-background: 215 48% 18%;
+    --sidebar-foreground: 210 20% 88%;
+    --sidebar-primary: 345 50% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 48% 25%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 215 48% 14%;
+    --sidebar-ring: 345 50% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.02em;
+  }
+}

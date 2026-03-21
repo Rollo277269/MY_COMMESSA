@@ -1,0 +1,1 @@
+ALTER TABLE public.commessa_data ADD COLUMN stato text NOT NULL DEFAULT 'da_iniziare';

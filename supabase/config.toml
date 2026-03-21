@@ -1,0 +1,41 @@
+project_id = "scqwswwmhhmzpnzhvidr"
+
+[functions.analyze-document]
+verify_jwt = true
+
+[functions.extract-commessa]
+verify_jwt = true
+
+[functions.parse-cme]
+verify_jwt = true
+
+[functions.parse-cronoprogramma]
+verify_jwt = true
+
+[functions.parse-rapporto-dettatura]
+verify_jwt = true
+
+# check-scadenze è chiamata da pg_cron (no JWT) — protetta da CRON_SECRET header
+[functions.check-scadenze]
+verify_jwt = false
+
+[functions.ai-assistant]
+verify_jwt = true
+
+[functions.extract-contacts]
+verify_jwt = true
+
+[functions.extract-companies]
+verify_jwt = true
+
+[functions.project-summary]
+verify_jwt = true
+
+[functions.generate-pdq]
+verify_jwt = true
+
+[functions.match-checklist]
+verify_jwt = true
+
+[functions.generate-ambiente-analisi]
+verify_jwt = true

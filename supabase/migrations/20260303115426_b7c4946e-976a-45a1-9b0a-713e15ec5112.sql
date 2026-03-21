@@ -1,0 +1,1 @@
+ALTER TABLE public.commessa_data ADD COLUMN cig_derivato text DEFAULT NULL;

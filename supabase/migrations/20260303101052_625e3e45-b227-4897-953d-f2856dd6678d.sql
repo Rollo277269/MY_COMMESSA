@@ -1,0 +1,1 @@
+ALTER TABLE public.commessa_data ADD COLUMN cup text, ADD COLUMN cig text;

@@ -1,0 +1,1 @@
+ALTER TABLE public.commessa_data ADD COLUMN aggio_consorzio numeric DEFAULT 3;
