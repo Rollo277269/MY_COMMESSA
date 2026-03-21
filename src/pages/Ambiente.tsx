@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { DocumentUpload } from "@/components/DocumentUpload";
@@ -7,62 +7,28 @@ import { DocumentCardGrid } from "@/components/DocumentCardGrid";
 import { DocumentPreview } from "@/components/DocumentPreview";
 import { DocumentToolbar } from "@/components/DocumentToolbar";
 import { Leaf } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_VISIBLE_COLUMNS, type ColumnKey } from "@/components/DocumentTable";
-import { useToast } from "@/hooks/use-toast";
 import { useColumnOrder } from "@/hooks/useColumnOrder";
 import { useViewMode } from "@/hooks/useViewMode";
 import { useDocumentFilters } from "@/hooks/useDocumentFilters";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useCommessa } from "@/contexts/CommessaContext";
-import { sortDocumentsByDate } from "@/lib/sortDocumentsByDate";
 import { AmbienteAnalisi } from "@/components/ambiente/AmbienteAnalisi";
+import { useDocumentPage } from "@/hooks/useDocumentPage";
 
 export default function AmbientePage() {
   const { commessaId } = useCommessa();
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const { documents, loading, hasError, fetchDocuments, handleDelete: deleteDoc, handleUpdate } = useDocumentPage("ambiente");
   const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(DEFAULT_VISIBLE_COLUMNS);
-  const { toast } = useToast();
   const { columnOrder, updateColumnOrder, columnWidths, updateColumnWidths, resetColumns } = useColumnOrder("ambiente", DEFAULT_VISIBLE_COLUMNS);
   const { viewMode, updateViewMode } = useViewMode("ambiente");
   const { activeFilterCount, setActiveFilterCount, clearFiltersRef, clearAllFilters } = useDocumentFilters();
 
-  const fetchDocuments = useCallback(async () => {
-    if (!commessaId) return;
-    setLoading(true);
-    const { data, error } = await supabase.
-    from('documents').select('*').eq('section', 'ambiente').eq('commessa_id', commessaId).
-    order('created_at', { ascending: false });
-    if (error) {
-      setHasError(true);
-      toast({ title: "Errore caricamento documenti", description: error.message, variant: "destructive" });
-    } else {
-      setHasError(false);
-      setDocuments(sortDocumentsByDate(data || []));
-    }
-    setLoading(false);
-  }, [commessaId]);
-
-  useEffect(() => {fetchDocuments();}, [fetchDocuments]);
-
-  const handleDelete = async (id: string, filePath: string) => {
-    await supabase.storage.from('documents').remove([filePath]);
-    await supabase.from('documents').delete().eq('id', id);
+  const handleDelete = (id: string, filePath: string) => {
     if (selectedDoc?.id === id) setSelectedDoc(null);
-    toast({ title: "Documento eliminato" });
-    fetchDocuments();
-  };
-
-  const handleUpdate = async (id: string, updatedAiData: any, newFileName?: string) => {
-    const updateData: any = { ai_extracted_data: updatedAiData };
-    if (newFileName) updateData.file_name = newFileName;
-    const { error } = await supabase.from('documents').update(updateData).eq('id', id);
-    if (error) {toast({ title: "Errore", variant: "destructive" });} else
-    {toast({ title: "Documento aggiornato" });fetchDocuments();}
+    deleteDoc(id, filePath);
   };
 
   const renderDocumentView = () => {
@@ -80,31 +46,31 @@ export default function AmbientePage() {
           <AmbienteAnalisi commessaId={commessaId} />
         </div>
         <div className="flex-1 overflow-hidden px-3 lg:px-4 pb-3">
-          {loading ?
-          <div className="text-center py-8 text-muted-foreground text-sm">Caricamento...</div> :
-          hasError ?
-          <div className="text-center py-12 space-y-3">
-            <p className="text-destructive text-sm">Errore durante il caricamento dei documenti.</p>
-            <button onClick={fetchDocuments} className="text-sm underline text-muted-foreground hover:text-foreground">Riprova</button>
-          </div> :
-          documents.length === 0 ?
-          <div className="text-center py-12 text-muted-foreground text-sm">Nessun documento ambientale caricato. Carica piani ambientali, autorizzazioni e certificazioni, formulari rifiuti, qualificazione delle discariche e dei trasportatori.</div> :
-
-          <>
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">Caricamento...</div>
+          ) : hasError ? (
+            <div className="text-center py-12 space-y-3">
+              <p className="text-destructive text-sm">Errore durante il caricamento dei documenti.</p>
+              <button onClick={() => fetchDocuments()} className="text-sm underline text-muted-foreground hover:text-foreground">Riprova</button>
+            </div>
+          ) : documents.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">Nessun documento ambientale caricato. Carica piani ambientali, autorizzazioni e certificazioni, formulari rifiuti, qualificazione delle discariche e dei trasportatori.</div>
+          ) : (
+            <>
               <DocumentToolbar documents={documents} searchQuery={searchQuery} onSearchChange={setSearchQuery} visibleColumns={visibleColumns} onVisibleColumnsChange={setVisibleColumns} viewMode={viewMode} onViewModeChange={updateViewMode} onResetColumns={resetColumns} activeFilterCount={activeFilterCount} onClearAllFilters={clearAllFilters} />
-              {selectedDoc && viewMode === "table" ?
-            <ResizablePanelGroup direction="horizontal" className="rounded-lg border border-border bg-card h-[calc(100%-44px)]">
+              {selectedDoc && viewMode === "table" ? (
+                <ResizablePanelGroup direction="horizontal" className="rounded-lg border border-border bg-card h-[calc(100%-44px)]">
                   <ResizablePanel defaultSize={50} minSize={30}><div className="h-full overflow-auto">{renderDocumentView()}</div></ResizablePanel>
                   <ResizableHandle withHandle />
                   <ResizablePanel defaultSize={50} minSize={25}><DocumentPreview document={selectedDoc} onClose={() => setSelectedDoc(null)} /></ResizablePanel>
-                </ResizablePanelGroup> :
-
-            <div className="overflow-auto h-[calc(100%-44px)]">{renderDocumentView()}</div>
-            }
+                </ResizablePanelGroup>
+              ) : (
+                <div className="overflow-auto h-[calc(100%-44px)]">{renderDocumentView()}</div>
+              )}
             </>
-          }
+          )}
         </div>
       </div>
-    </AppLayout>);
-
+    </AppLayout>
+  );
 }

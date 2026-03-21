@@ -214,6 +214,36 @@ export function useCronoprogramma() {
 
   const updateDependencies = useMutation({
     mutationFn: async ({ id, dependsOn }: { id: string; dependsOn: string[] }) => {
+      // [L09] Cycle detection via DFS prima di salvare
+      const { data: allPhases } = await supabase
+        .from("cronoprogramma_phases")
+        .select("id, depends_on")
+        .eq("commessa_id", commessaId!);
+
+      if (allPhases) {
+        // Costruisci grafo con la dipendenza proposta inclusa
+        const graph = new Map<string, string[]>();
+        for (const p of allPhases) {
+          graph.set(p.id, p.id === id ? dependsOn : (p.depends_on ?? []));
+        }
+        // DFS per rilevare cicli partendo da `id`
+        const visited = new Set<string>();
+        const hasCycle = (node: string, ancestors: Set<string>): boolean => {
+          if (ancestors.has(node)) return true;
+          if (visited.has(node)) return false;
+          visited.add(node);
+          ancestors.add(node);
+          for (const dep of graph.get(node) ?? []) {
+            if (hasCycle(dep, ancestors)) return true;
+          }
+          ancestors.delete(node);
+          return false;
+        };
+        if (hasCycle(id, new Set())) {
+          throw new Error("Dipendenza circolare rilevata: questa dipendenza creerebbe un ciclo nel cronoprogramma.");
+        }
+      }
+
       const { error } = await supabase
         .from("cronoprogramma_phases")
         .update({ depends_on: dependsOn } as any)
@@ -224,8 +254,8 @@ export function useCronoprogramma() {
       invalidate();
       toast({ title: "Dipendenze aggiornate" });
     },
-    onError: () => {
-      toast({ title: "Errore", description: "Impossibile aggiornare le dipendenze", variant: "destructive" });
+    onError: (e: Error) => {
+      toast({ title: "Errore dipendenze", description: e.message, variant: "destructive" });
     },
   });
 

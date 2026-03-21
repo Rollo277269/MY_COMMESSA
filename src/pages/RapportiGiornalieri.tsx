@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { DocumentUpload } from "@/components/DocumentUpload";
@@ -18,15 +18,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useColumnOrder } from "@/hooks/useColumnOrder";
 import { useViewMode } from "@/hooks/useViewMode";
 import { useDocumentFilters } from "@/hooks/useDocumentFilters";
-import { sortDocumentsByDate } from "@/lib/sortDocumentsByDate";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { generateRapportoPdf, type RapportoData } from "@/lib/generateRapportoPdf";
+import { useDocumentPage } from "@/hooks/useDocumentPage";
 
 export default function RapportiGiornalieriPage() {
   const { commessaId } = useCommessa();
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
+  const { documents, loading, hasError, fetchDocuments, handleDelete: deleteDoc, handleUpdate } = useDocumentPage("rapporti-giornalieri");
   const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(DEFAULT_VISIBLE_COLUMNS);
@@ -38,39 +36,9 @@ export default function RapportiGiornalieriPage() {
   const { viewMode, updateViewMode } = useViewMode("rapporti");
   const { activeFilterCount, setActiveFilterCount, clearFiltersRef, clearAllFilters } = useDocumentFilters();
 
-  const fetchDocuments = useCallback(async () => {
-    if (!commessaId) return;
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('documents').select('*')
-      .eq('section', 'rapporti-giornalieri').eq('commessa_id', commessaId)
-      .order('created_at', { ascending: false });
-    if (error) {
-      setHasError(true);
-      toast({ title: "Errore caricamento documenti", description: error.message, variant: "destructive" });
-    } else {
-      setHasError(false);
-      setDocuments(sortDocumentsByDate(data || []));
-    }
-    setLoading(false);
-  }, [commessaId]);
-
-  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
-
-  const handleDelete = async (id: string, filePath: string) => {
-    await supabase.storage.from('documents').remove([filePath]);
-    await supabase.from('documents').delete().eq('id', id);
+  const handleDelete = (id: string, filePath: string) => {
     if (selectedDoc?.id === id) setSelectedDoc(null);
-    toast({ title: "Documento eliminato" });
-    fetchDocuments();
-  };
-
-  const handleUpdate = async (id: string, updatedAiData: any, newFileName?: string) => {
-    const updateData: any = { ai_extracted_data: updatedAiData };
-    if (newFileName) updateData.file_name = newFileName;
-    const { error } = await supabase.from('documents').update(updateData).eq('id', id);
-    if (error) { toast({ title: "Errore", variant: "destructive" }); }
-    else { toast({ title: "Documento aggiornato" }); fetchDocuments(); }
+    deleteDoc(id, filePath);
   };
 
   const handleConvertToPdf = async (doc: any) => {
@@ -79,14 +47,10 @@ export default function RapportiGiornalieriPage() {
       toast({ title: "Nessun testo dettato trovato in questo documento", variant: "destructive" });
       return;
     }
-
     setConverting(doc.id);
     try {
-      const { data: parsed, error: fnError } = await invokeWithRetry<any>("parse-rapporto-dettatura", {
-        body: { testo },
-      });
+      const { data: parsed, error: fnError } = await invokeWithRetry<any>("parse-rapporto-dettatura", { body: { testo } });
       if (fnError) throw fnError;
-
       const rapportoData: RapportoData = {
         data: parsed.data || new Date().toISOString().slice(0, 10),
         data_display: parsed.data_display || new Date().toLocaleDateString("it-IT"),
@@ -98,41 +62,29 @@ export default function RapportiGiornalieriPage() {
         altri_documenti: parsed.altri_documenti || "",
         note: parsed.note || "",
       };
-
       const pdfBlob = await generateRapportoPdf(rapportoData);
       const pdfName = doc.file_name.replace(/\.txt$/i, "") + "_Rapporto.pdf";
       const pdfPath = `rapporti-giornalieri/${pdfName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("documents")
-        .upload(pdfPath, pdfBlob, { contentType: "application/pdf" });
+      const { error: uploadError } = await supabase.storage.from("documents").upload(pdfPath, pdfBlob, { contentType: "application/pdf" });
       if (uploadError) throw uploadError;
-
       const { error: insertError } = await supabase.from("documents").insert([{
-        file_name: pdfName,
-        file_path: pdfPath,
-        file_type: "application/pdf",
-        file_size: pdfBlob.size,
-        section: "rapporti-giornalieri",
-        ai_status: "completed",
+        file_name: pdfName, file_path: pdfPath, file_type: "application/pdf",
+        file_size: pdfBlob.size, section: "rapporti-giornalieri", ai_status: "completed",
         ai_summary: `Rapporto giornaliero del ${rapportoData.data_display} (da dettatura)`,
         ai_extracted_data: { ...rapportoData, testo_originale: testo } as any,
         ...(commessaId ? { commessa_id: commessaId } : {}),
       }]);
       if (insertError) throw insertError;
-
       toast({ title: "PDF rapporto generato con successo" });
       fetchDocuments();
     } catch (err: any) {
-      console.error("Convert error:", err);
       toast({ title: "Errore conversione", description: err.message, variant: "destructive" });
     } finally {
       setConverting(null);
     }
   };
 
-  const isDictation = (doc: any) =>
-    doc.file_type === "text/plain" && doc.ai_extracted_data?.testo_dettato;
+  const isDictation = (doc: any) => doc.file_type === "text/plain" && doc.ai_extracted_data?.testo_dettato;
 
   return (
     <AppLayout>
@@ -155,24 +107,13 @@ export default function RapportiGiornalieriPage() {
           />
           <VoiceDictationDialog open={dictationOpen} onOpenChange={setDictationOpen} section="rapporti-giornalieri" onComplete={fetchDocuments} />
           <RapportoFormSheet open={formOpen} onOpenChange={setFormOpen} section="rapporti-giornalieri" onComplete={fetchDocuments} />
-
           {selectedDoc && isDictation(selectedDoc) && (
             <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-md border border-border">
               <span className="text-xs text-muted-foreground flex-1">
                 Questo file è una dettatura vocale. Puoi convertirlo in un PDF strutturato con i campi del rapportino.
               </span>
-              <Button
-                size="sm"
-                variant="default"
-                className="gap-1.5 h-7 text-xs px-2.5"
-                onClick={() => handleConvertToPdf(selectedDoc)}
-                disabled={converting === selectedDoc.id}
-              >
-                {converting === selectedDoc.id ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <FileOutput className="w-3 h-3" />
-                )}
+              <Button size="sm" variant="default" className="gap-1.5 h-7 text-xs px-2.5" onClick={() => handleConvertToPdf(selectedDoc)} disabled={converting === selectedDoc.id}>
+                {converting === selectedDoc.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileOutput className="w-3 h-3" />}
                 {converting === selectedDoc.id ? "Elaborazione AI..." : "Converti in PDF"}
               </Button>
             </div>
@@ -184,12 +125,10 @@ export default function RapportiGiornalieriPage() {
           ) : hasError ? (
             <div className="text-center py-12 space-y-3">
               <p className="text-destructive text-sm">Errore durante il caricamento dei documenti.</p>
-              <button onClick={fetchDocuments} className="text-sm underline text-muted-foreground hover:text-foreground">Riprova</button>
+              <button onClick={() => fetchDocuments()} className="text-sm underline text-muted-foreground hover:text-foreground">Riprova</button>
             </div>
           ) : documents.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">
-              Nessun rapporto giornaliero caricato. Carica il primo rapporto.
-            </div>
+            <div className="text-center py-12 text-muted-foreground text-sm">Nessun rapporto giornaliero caricato. Carica il primo rapporto.</div>
           ) : (
             <>
               <DocumentToolbar documents={documents} searchQuery={searchQuery} onSearchChange={setSearchQuery} visibleColumns={visibleColumns} onVisibleColumnsChange={setVisibleColumns} viewMode={viewMode} onViewModeChange={updateViewMode} onResetColumns={resetColumns} activeFilterCount={activeFilterCount} onClearAllFilters={clearAllFilters} />

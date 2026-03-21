@@ -113,10 +113,7 @@ export default function CMEPage() {
   const updateRow = useMutation({
     mutationFn: async (row: CmeRow) => {
       if (!row.id) return;
-      const { id, ...updates } = row;
-      if (updates.quantita != null && updates.prezzo_unitario != null) {
-        updates.importo = updates.quantita * updates.prezzo_unitario;
-      }
+      const { id, importo: _importo, ...updates } = row; // importo è GENERATED ALWAYS — non inviarlo nell'UPDATE
       const { error } = await supabase.from("cme_rows").update(updates).eq("id", id);
       if (error) throw error;
     },
@@ -153,7 +150,8 @@ export default function CMEPage() {
         await supabase.from("cme_rows").delete().in("id", existing.map((r) => r.id));
       }
       if (newRows.length > 0) {
-        const rowsWithCommessa = newRows.map(r => ({ ...r, commessa_id: commessaId }));
+        // Esclude importo: è GENERATED ALWAYS AS (quantita * prezzo_unitario) nel DB
+        const rowsWithCommessa = newRows.map(({ importo: _importo, ...r }) => ({ ...r, commessa_id: commessaId }));
         const { error } = await supabase.from("cme_rows").insert(rowsWithCommessa);
         if (error) throw error;
       }
