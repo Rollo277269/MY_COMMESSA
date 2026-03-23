@@ -177,13 +177,20 @@ export function AppSidebar() {
     >
       {/* Header */}
       <div className="flex items-center gap-3 px-5 h-[64px] border-b border-sidebar-border">
-        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
+        <button
+          onClick={() => navigate("/commesse")}
+          title="Torna alla selezione commessa"
+          className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0 hover:opacity-80 transition-opacity"
+        >
           <HardHat className="w-[18px] h-[18px] text-primary-foreground" />
-        </div>
+        </button>
         {expanded && (
-          <span className="font-display font-bold text-sidebar-primary-foreground text-[18px] tracking-tight truncate flex-1">
+          <button
+            onClick={() => navigate("/commesse")}
+            className="font-display font-bold text-sidebar-primary-foreground text-[18px] tracking-tight truncate flex-1 text-left hover:opacity-80 transition-opacity"
+          >
             Commesse
-          </span>
+          </button>
         )}
         {expanded && (
           <button
@@ -284,6 +291,30 @@ export function AppSidebar() {
             )}
           </div>
         )}
+        <div className={cn("flex gap-2", expanded ? "items-center" : "flex-col items-center")}>
+          <button
+            onClick={() => navigate("/commesse")}
+            title="Cambia Commessa"
+            className={cn(
+              "flex items-center gap-2 py-1.5 rounded-lg text-[12px] font-medium transition-colors text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-foreground",
+              expanded ? "flex-1 px-3" : "w-full justify-center px-0"
+            )}
+          >
+            <ArrowLeftRight className="w-4 h-4 flex-shrink-0" />
+            {expanded && <span>Cambia Commessa</span>}
+          </button>
+          <button
+            onClick={async () => { await supabase.auth.signOut(); navigate("/commesse"); }}
+            title="Esci"
+            className={cn(
+              "flex items-center gap-2 py-1.5 rounded-lg text-[12px] font-medium transition-colors text-destructive/70 hover:bg-destructive/10 hover:text-destructive",
+              expanded ? "px-3" : "w-full justify-center px-0"
+            )}
+          >
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            {expanded && <span>Esci</span>}
+          </button>
+        </div>
       </div>
     </aside>
   );
