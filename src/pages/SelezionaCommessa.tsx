@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { AppLayout } from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useCommessa } from "@/contexts/CommessaContext";
 import { useUserProfile } from "@/contexts/UserProfileContext";
@@ -520,7 +521,7 @@ export default function SelezionaCommessaPage() {
 
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
       <div className="max-w-[100vw] mx-auto">
         {/* Sticky toolbar */}
@@ -898,6 +899,6 @@ export default function SelezionaCommessaPage() {
         </DialogContent>
       </Dialog>
       </div>
-    </div>);
+    </AppLayout>);
 
 }
