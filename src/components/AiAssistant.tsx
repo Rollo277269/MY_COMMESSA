@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { X, Send, Mic, MicOff, Trash2, Volume2, VolumeX } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,7 +13,7 @@ import { useCommessa } from "@/contexts/CommessaContext";
 
 type Message = { role: "user" | "assistant"; content: string };
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cm-ai-assistant`;
 
 const SECTION_MAP: Record<string, string> = {
   "/": "Dashboard",
@@ -66,6 +67,7 @@ function speakText(text: string, onEnd?: () => void) {
 }
 
 export function AiAssistant() {
+  const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -310,6 +312,11 @@ export function AiAssistant() {
       stream.getTracks().forEach(t => t.stop());
     } catch (err) {
       console.warn("Microphone permission denied:", err);
+      toast({
+        title: "Microfono non accessibile",
+        description: "Per registrare audio, abilita il microfono nelle impostazioni del browser.",
+        variant: "destructive",
+      });
       return;
     }
 

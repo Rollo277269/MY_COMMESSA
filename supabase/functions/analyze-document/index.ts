@@ -113,7 +113,7 @@ CAMPI SPECIFICI PER POLIZZE ASSICURATIVE:
 CAMPI SPECIFICI PER FATTURE:
 - numero_fattura: numero della fattura (es. "275", "FT-001")
 - imponibile: importo imponibile (base imponibile netta, SENZA IVA). Estrarre come numero decimale (es. 1234.56)
-- aliquota_iva: aliquota IVA in percentuale (es. 22, 10, 4, 0). Se non specificata, lascia null
+- aliquota_iva: aliquota IVA in percentuale (es. 22, 10, 4, 0). Se non specificata nel documento, usa 22 come valore di default
 - importo_iva: importo dell'IVA in euro. Estrarre come numero decimale
 - importo_totale: importo totale della fattura (imponibile + IVA). Estrarre come numero decimale
 - codice_sdi: codice destinatario SDI se presente

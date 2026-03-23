@@ -205,7 +205,7 @@ export function DocumentUpload({ section, commessaId, onUploadComplete, compact 
         file_size: file.size,
         section,
         ai_status: 'processing',
-        commessa_id: commessaId || null,
+        cm_commessa_id: commessaId || null,
         file_hash: fileHash,
         subfolder: subfolder || null,
       } as any)

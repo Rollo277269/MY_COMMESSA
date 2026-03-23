@@ -82,9 +82,9 @@ export default function CMEPage() {
     queryFn: async () => {
       if (!commessaId) return [];
       const { data, error } = await supabase
-        .from("cme_rows")
+        .from("cm_cme_rows")
         .select("*")
-        .eq("commessa_id", commessaId)
+        .eq("cm_commessa_id", commessaId)
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return data as CmeRow[];
@@ -95,10 +95,10 @@ export default function CMEPage() {
   const clearAll = useMutation({
     mutationFn: async () => {
       if (!commessaId) return;
-      const { data } = await supabase.from("cme_rows").select("id").eq("commessa_id", commessaId);
+      const { data } = await supabase.from("cm_cme_rows").select("id").eq("cm_commessa_id", commessaId);
       if (data && data.length > 0) {
         const { error } = await supabase
-          .from("cme_rows")
+          .from("cm_cme_rows")
           .delete()
           .in("id", data.map((r) => r.id));
         if (error) throw error;
@@ -114,7 +114,7 @@ export default function CMEPage() {
     mutationFn: async (row: CmeRow) => {
       if (!row.id) return;
       const { id, importo: _importo, ...updates } = row; // importo è GENERATED ALWAYS — non inviarlo nell'UPDATE
-      const { error } = await supabase.from("cme_rows").update(updates).eq("id", id);
+      const { error } = await supabase.from("cm_cme_rows").update(updates).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -145,14 +145,14 @@ export default function CMEPage() {
   const saveRows = useMutation({
     mutationFn: async (newRows: Omit<CmeRow, "id">[]) => {
       if (!commessaId) return;
-      const { data: existing } = await supabase.from("cme_rows").select("id").eq("commessa_id", commessaId);
+      const { data: existing } = await supabase.from("cm_cme_rows").select("id").eq("cm_commessa_id", commessaId);
       if (existing && existing.length > 0) {
-        await supabase.from("cme_rows").delete().in("id", existing.map((r) => r.id));
+        await supabase.from("cm_cme_rows").delete().in("id", existing.map((r) => r.id));
       }
       if (newRows.length > 0) {
         // Esclude importo: è GENERATED ALWAYS AS (quantita * prezzo_unitario) nel DB
-        const rowsWithCommessa = newRows.map(({ importo: _importo, ...r }) => ({ ...r, commessa_id: commessaId }));
-        const { error } = await supabase.from("cme_rows").insert(rowsWithCommessa);
+        const rowsWithCommessa = newRows.map(({ importo: _importo, ...r }) => ({ ...r, cm_commessa_id: commessaId }));
+        const { error } = await supabase.from("cm_cme_rows").insert(rowsWithCommessa);
         if (error) throw error;
       }
     },
@@ -263,7 +263,7 @@ export default function CMEPage() {
           description: `Pagine ${i + 1}-${Math.min(i + PAGES_PER_CHUNK, pageTexts.length)} di ${pageTexts.length}`,
         });
 
-        const { data, error } = await invokeWithRetry<any>("parse-cme", {
+        const { data, error } = await invokeWithRetry<any>("cm-parse-cme", {
           body: { textContent: chunkText },
         });
 
@@ -275,7 +275,7 @@ export default function CMEPage() {
       return allRows.filter(r => !isTotalOrCarryRow(r)).map((r, i) => mapRow(r, i));
     } else {
       textContent = await file.text();
-      const { data, error } = await invokeWithRetry<any>("parse-cme", {
+      const { data, error } = await invokeWithRetry<any>("cm-parse-cme", {
         body: { textContent },
       });
       if (error) throw error;

@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 type Evento = {
   id: string;
-  commessa_id: string | null;
+  cm_commessa_id: string | null;
   data_evento: string;
   titolo: string;
   descrizione: string | null;
@@ -95,9 +95,9 @@ export default function EventiPage() {
     if (!commessaId) return;
     setLoading(true);
     const { data } = await supabase
-      .from("eventi_commessa")
+      .from("cm_eventi_commessa")
       .select("*")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .order("data_evento", { ascending: false });
     setEventi((data as Evento[]) || []);
     setLoading(false);
@@ -106,9 +106,9 @@ export default function EventiPage() {
   const fetchDocuments = useCallback(async () => {
     if (!commessaId) return;
     const { data } = await supabase
-      .from("documents")
+      .from("cm_documents")
       .select("id, file_name")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .order("file_name");
     setDocuments(data || []);
   }, [commessaId]);
@@ -119,7 +119,7 @@ export default function EventiPage() {
     if (!editEvento.titolo?.trim() || !commessaId) return;
     setSaving(true);
     const payload = {
-      commessa_id: commessaId,
+      cm_commessa_id: commessaId,
       data_evento: editEvento.data_evento,
       titolo: editEvento.titolo!.trim(),
       descrizione: editEvento.descrizione || null,
@@ -132,10 +132,10 @@ export default function EventiPage() {
     };
 
     if (editEvento.id) {
-      await supabase.from("eventi_commessa").update(payload).eq("id", editEvento.id);
+      await supabase.from("cm_eventi_commessa").update(payload).eq("id", editEvento.id);
       toast({ title: "Evento aggiornato" });
     } else {
-      await supabase.from("eventi_commessa").insert(payload);
+      await supabase.from("cm_eventi_commessa").insert(payload);
       toast({ title: "Evento creato" });
     }
     setSaving(false);
@@ -145,7 +145,7 @@ export default function EventiPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("eventi_commessa").delete().eq("id", id);
+    await supabase.from("cm_eventi_commessa").delete().eq("id", id);
     toast({ title: "Evento eliminato" });
     fetchEventi();
   };

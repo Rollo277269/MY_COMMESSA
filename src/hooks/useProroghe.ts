@@ -22,9 +22,9 @@ export function useProroghe() {
     enabled: !!commessaId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("proroghe")
+        .from("cm_proroghe")
         .select("*")
-        .eq("commessa_id", commessaId!)
+        .eq("cm_commessa_id", commessaId!)
         .order("data_concessione", { ascending: true });
       if (error) throw error;
       return data as Proroga[];
@@ -33,7 +33,7 @@ export function useProroghe() {
 
   const addProroga = useMutation({
     mutationFn: async (p: Omit<Proroga, "id">) => {
-      const { error } = await supabase.from("proroghe").insert({ ...p, commessa_id: commessaId } as any);
+      const { error } = await supabase.from("cm_proroghe").insert({ ...p, cm_commessa_id: commessaId } as any);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -47,7 +47,7 @@ export function useProroghe() {
 
   const deleteProroga = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("proroghe").delete().eq("id", id);
+      const { error } = await supabase.from("cm_proroghe").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

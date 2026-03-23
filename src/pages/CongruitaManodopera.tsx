@@ -87,7 +87,7 @@ export default function CongruitaManodopera() {
     queryKey: ["commessa-congruita", commessaId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("commessa_data")
+        .from("cm_commessa_data")
         .select("importo_contrattuale, costo_manodopera, importo_base_gara, oggetto_lavori")
         .eq("id", commessaId!)
         .single();

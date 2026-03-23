@@ -35,7 +35,7 @@ export function CmeLinkDialog({ open, onOpenChange, phaseId, phaseName, linkedCm
     setSearch("");
     (async () => {
       setLoading(true);
-      const { data } = await supabase.from("cme_rows").select("id, numero, codice, descrizione").order("sort_order");
+      const { data } = await supabase.from("cm_cme_rows").select("id, numero, codice, descrizione").order("sort_order");
       setCmeRows(data || []);
       setLoading(false);
     })();

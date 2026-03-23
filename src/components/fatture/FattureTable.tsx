@@ -74,7 +74,7 @@ function getSortValue(f: Fattura, key: FatturaColumnKey, centroName: (id: string
     case "fornitore": return f.tipo === "acquisto" ? f.fornitore_cliente.toLowerCase() : "";
     case "cliente": return f.tipo === "vendita" ? f.fornitore_cliente.toLowerCase() : "";
     case "descrizione": return (f.descrizione || "").toLowerCase();
-    case "centro": return centroName(f.centro_imputazione_id).toLowerCase();
+    case "centro": return centroName(f.cm_centro_imputazione_id).toLowerCase();
     case "importo": return Number(f.importo);
     case "aliquota_iva": return Number(f.aliquota_iva);
     case "importo_iva": return Number(f.importo_iva);
@@ -115,7 +115,7 @@ export function FattureTable({
     let data = fatture;
     if (filterTipo !== "tutti") data = data.filter(f => f.tipo === filterTipo);
     if (filterStato !== "tutti") data = data.filter(f => f.stato_pagamento === filterStato);
-    if (filterCentro !== "tutti") data = data.filter(f => f.centro_imputazione_id === filterCentro);
+    if (filterCentro !== "tutti") data = data.filter(f => f.cm_centro_imputazione_id === filterCentro);
     if (searchText.trim()) {
       const s = searchText.toLowerCase();
       data = data.filter(f =>
@@ -208,7 +208,7 @@ export function FattureTable({
       case "centro": return onChangeCentro ? (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <Select
-              value={f.centro_imputazione_id || "__none__"}
+              value={f.cm_centro_imputazione_id || "__none__"}
               onValueChange={(val) => onChangeCentro(f.id, val === "__none__" ? null : val)}
             >
               <SelectTrigger className="h-7 text-xs border-none shadow-none bg-transparent px-1 min-w-[100px]">
@@ -225,7 +225,7 @@ export function FattureTable({
           </div>
         ) : (
           <span className="text-xs text-muted-foreground truncate flex items-center gap-1">
-            {centroName(f.centro_imputazione_id)}
+            {centroName(f.cm_centro_imputazione_id)}
             {f.centro_auto_assigned && <Sparkles className="w-3 h-3 text-primary flex-shrink-0" />}
           </span>
         );

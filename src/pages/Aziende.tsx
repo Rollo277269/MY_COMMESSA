@@ -100,9 +100,9 @@ export default function AziendePage() {
     if (!commessaId) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from("aziende")
+      .from("cm_aziende")
       .select("*")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .order("nome", { ascending: true });
     if (!error) setAziende((data as Azienda[]) || []);
     setLoading(false);
@@ -120,7 +120,7 @@ export default function AziendePage() {
         duplicates?: DuplicateCompany[];
         message?: string;
         error?: string;
-      }>("extract-companies", { body: { commessa_id: commessaId } });
+      }>("cm-extract-companies", { body: { cm_commessa_id: commessaId } });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -165,7 +165,7 @@ export default function AziendePage() {
 
       if (Object.keys(updateData).length > 0) {
         const { error } = await supabase
-          .from("aziende")
+          .from("cm_aziende")
           .update(updateData)
           .eq("id", dup.existing_id);
         if (!error) updated++;
@@ -192,7 +192,7 @@ export default function AziendePage() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("aziende").delete().eq("id", id);
+    await supabase.from("cm_aziende").delete().eq("id", id);
     if (selectedAzienda?.id === id) setSelectedAzienda(null);
     toast({ title: "Azienda eliminata" });
     fetchAziende();

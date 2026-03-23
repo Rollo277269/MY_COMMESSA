@@ -58,7 +58,7 @@ const DEFAULT_CSE_CHECKLIST = [
 
 interface Subappaltatore {
   id: string;
-  commessa_id: string;
+  cm_commessa_id: string;
   nome: string;
   partita_iva?: string;
   codice_fiscale?: string;
@@ -73,7 +73,7 @@ interface Subappaltatore {
 
 interface ChecklistItem {
   id: string;
-  subappaltatore_id: string;
+  cm_subappaltatore_id: string;
   voce: string;
   completato: boolean;
   document_id?: string;
@@ -100,9 +100,9 @@ export default function SubappaltiPage() {
     if (!commessaId) return;
     setLoading(true);
     const { data } = await supabase
-      .from("subappaltatori")
+      .from("cm_subappaltatori")
       .select("*")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .order("created_at", { ascending: true });
     setSubappaltatori((data as any[]) || []);
     setLoading(false);
@@ -113,9 +113,9 @@ export default function SubappaltiPage() {
   const fetchChecklist = useCallback(async (subId: string) => {
     setChecklistLoading(true);
     const { data } = await supabase
-      .from("subappaltatore_checklist")
+      .from("cm_subappaltatore_checklist")
       .select("*")
-      .eq("subappaltatore_id", subId)
+      .eq("cm_subappaltatore_id", subId)
       .order("sort_order", { ascending: true });
     setChecklist((data as any[]) || []);
     setChecklistLoading(false);
@@ -124,9 +124,9 @@ export default function SubappaltiPage() {
   const fetchDocuments = useCallback(async () => {
     if (!commessaId || !selectedSub) return;
     const { data } = await supabase
-      .from("documents")
+      .from("cm_documents")
       .select("*")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .eq("section", "subappalti")
       .eq("subfolder", selectedSub.id)
       .order("created_at", { ascending: false });
@@ -146,9 +146,9 @@ export default function SubappaltiPage() {
   const handleCreateSub = async () => {
     if (!commessaId || !newForm.nome.trim()) return;
     const { data: sub, error } = await supabase
-      .from("subappaltatori")
+      .from("cm_subappaltatori")
       .insert({
-        commessa_id: commessaId,
+        cm_commessa_id: commessaId,
         nome: newForm.nome.trim(),
         partita_iva: newForm.partita_iva || null,
         lavorazioni: newForm.lavorazioni || null,
@@ -166,11 +166,11 @@ export default function SubappaltiPage() {
 
     // Create default checklist
     const items = DEFAULT_CSE_CHECKLIST.map((voce, i) => ({
-      subappaltatore_id: (sub as any).id,
+      cm_subappaltatore_id: (sub as any).id,
       voce,
       sort_order: i,
     }));
-    await supabase.from("subappaltatore_checklist").insert(items as any);
+    await supabase.from("cm_subappaltatore_checklist").insert(items as any);
 
     toast({ title: "Subappaltatore aggiunto" });
     setShowNewDialog(false);
@@ -183,15 +183,15 @@ export default function SubappaltiPage() {
     if (!deleteSub) return;
     // Delete associated documents from storage
     const { data: docs } = await supabase
-      .from("documents")
+      .from("cm_documents")
       .select("file_path")
       .eq("section", "subappalti")
       .eq("subfolder", deleteSub.id);
     if (docs?.length) {
-      await supabase.storage.from("documents").remove(docs.map(d => d.file_path));
+      await supabase.storage.from("cm-documents").remove(docs.map(d => d.file_path));
     }
-    await supabase.from("documents").delete().eq("section", "subappalti").eq("subfolder", deleteSub.id);
-    await supabase.from("subappaltatori").delete().eq("id", deleteSub.id);
+    await supabase.from("cm_documents").delete().eq("section", "subappalti").eq("subfolder", deleteSub.id);
+    await supabase.from("cm_subappaltatori").delete().eq("id", deleteSub.id);
     if (selectedSub?.id === deleteSub.id) setSelectedSub(null);
     setDeleteSub(null);
     toast({ title: "Subappaltatore eliminato" });
@@ -201,7 +201,7 @@ export default function SubappaltiPage() {
   const toggleChecklistItem = async (item: ChecklistItem) => {
     const newVal = !item.completato;
     await supabase
-      .from("subappaltatore_checklist")
+      .from("cm_subappaltatore_checklist")
       .update({ completato: newVal } as any)
       .eq("id", item.id);
     setChecklist(prev => prev.map(c => c.id === item.id ? { ...c, completato: newVal } : c));
@@ -209,7 +209,7 @@ export default function SubappaltiPage() {
 
   const linkDocumentToChecklist = async (checklistItemId: string, documentId: string | null) => {
     await supabase
-      .from("subappaltatore_checklist")
+      .from("cm_subappaltatore_checklist")
       .update({ document_id: documentId, completato: !!documentId } as any)
       .eq("id", checklistItemId);
     setChecklist(prev =>
@@ -220,7 +220,7 @@ export default function SubappaltiPage() {
   const handleUpdateSub = async () => {
     if (!editingSub) return;
     const { error } = await supabase
-      .from("subappaltatori")
+      .from("cm_subappaltatori")
       .update({
         nome: editingSub.nome,
         partita_iva: editingSub.partita_iva,
@@ -243,8 +243,8 @@ export default function SubappaltiPage() {
   const totalCount = checklist.length;
 
   const handleDeleteDoc = async (id: string, filePath: string) => {
-    await supabase.storage.from("documents").remove([filePath]);
-    await supabase.from("documents").delete().eq("id", id);
+    await supabase.storage.from("cm-documents").remove([filePath]);
+    await supabase.from("cm_documents").delete().eq("id", id);
     // Unlink from checklist
     const linked = checklist.filter(c => c.document_id === id);
     for (const item of linked) {

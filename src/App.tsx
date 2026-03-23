@@ -6,9 +6,9 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { CommessaProvider, useCommessa } from "@/contexts/CommessaContext";
+import { UserProfileProvider, useUserProfile } from "@/contexts/UserProfileContext";
 import type { Session } from "@supabase/supabase-js";
 
-import Auth from "./pages/Auth";
 import SelezionaCommessa from "./pages/SelezionaCommessa";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -37,6 +37,14 @@ import Eventi from "./pages/Eventi";
 
 const queryClient = new QueryClient();
 
+function ProfileLoadingGuard({ children }: { children: React.ReactNode }) {
+  const { loading } = useUserProfile();
+  if (loading) {
+    return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Caricamento profilo...</div>;
+  }
+  return <>{children}</>;
+}
+
 function RequireCommessa({ children }: { children: React.ReactNode }) {
   const { commessaId } = useCommessa();
   const location = useLocation();
@@ -64,15 +72,20 @@ function AppRoutes() {
 
   if (!session) {
     return (
-      <Routes>
-        <Route path="*" element={<Auth />} />
-      </Routes>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 text-center p-8">
+        <h1 className="text-xl font-semibold">Sessione non attiva</h1>
+        <p className="text-muted-foreground max-w-sm">
+          Accedi al portale dal cassetto <strong>Gare</strong> per avviare una sessione valida.
+        </p>
+      </div>
     );
   }
 
   return (
-    <CommessaProvider>
-      <Routes>
+    <UserProfileProvider>
+      <ProfileLoadingGuard>
+        <CommessaProvider>
+          <Routes>
         <Route path="/commesse" element={<SelezionaCommessa />} />
         <Route path="/" element={<RequireCommessa><Index /></RequireCommessa>} />
         <Route path="/documenti" element={<RequireCommessa><Documenti /></RequireCommessa>} />
@@ -98,8 +111,10 @@ function AppRoutes() {
         <Route path="/subappalti" element={<RequireCommessa><Subappalti /></RequireCommessa>} />
         <Route path="/eventi" element={<RequireCommessa><Eventi /></RequireCommessa>} />
         <Route path="*" element={<NotFound />} />
-      </Routes>
-    </CommessaProvider>
+          </Routes>
+        </CommessaProvider>
+      </ProfileLoadingGuard>
+    </UserProfileProvider>
   );
 }
 

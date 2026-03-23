@@ -68,7 +68,7 @@ function isImageFile(fileType: string | null, fileName: string): boolean {
 }
 
 function getPublicUrl(filePath: string): string {
-  const { data } = supabase.storage.from('documents').getPublicUrl(filePath);
+  const { data } = supabase.storage.from('cm-documents').getPublicUrl(filePath);
   return data.publicUrl;
 }
 

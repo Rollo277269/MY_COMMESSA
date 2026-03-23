@@ -7,7 +7,7 @@ import { useCommessa } from "@/contexts/CommessaContext";
 import { ClipboardList, Loader2, Download, RefreshCw, FileText, Pencil, PencilOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { generatePdqPdf, type PdqData, type PdqSection } from "@/lib/generatePdqPdf";
 import { PdqSectionView } from "@/components/pdq/PdqSectionView";
 import { PdqRevisionHistory } from "@/components/pdq/PdqRevisionHistory";
@@ -21,6 +21,7 @@ interface CommessaMeta {
 }
 
 export default function PianoQualita() {
+  const { toast } = useToast();
   const { commessaId } = useCommessa();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -36,8 +37,8 @@ export default function PianoQualita() {
     (async () => {
       setInitialLoading(true);
       const [pdqRes, commRes] = await Promise.all([
-        supabase.from("pdq_documents").select("*").eq("commessa_id", commessaId).order("revision", { ascending: false }).limit(1).maybeSingle(),
-        supabase.from("commessa_data").select("commessa_consortile, oggetto_lavori, committente, impresa_assegnataria").eq("id", commessaId).maybeSingle(),
+        supabase.from("cm_pdq_documents").select("*").eq("cm_commessa_id", commessaId).order("revision", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("cm_commessa_data").select("commessa_consortile, oggetto_lavori, committente, impresa_assegnataria").eq("id", commessaId).maybeSingle(),
       ]);
       if (commRes.data) setCommessaMeta(commRes.data);
       if (pdqRes.data) {
@@ -50,16 +51,16 @@ export default function PianoQualita() {
 
   const saveToDb = useCallback(async (data: PdqData, rev: number) => {
     if (!commessaId) return;
-    const { error } = await supabase.from("pdq_documents").insert({
-      commessa_id: commessaId,
+    const { error } = await supabase.from("cm_pdq_documents").insert({
+      cm_commessa_id: commessaId,
       revision: rev,
       sections: data.sections as any,
     });
     if (error) {
       // If revision already exists, update it
-      await supabase.from("pdq_documents")
+      await supabase.from("cm_pdq_documents")
         .update({ sections: data.sections as any })
-        .eq("commessa_id", commessaId)
+        .eq("cm_commessa_id", commessaId)
         .eq("revision", rev);
     }
   }, [commessaId]);
@@ -70,19 +71,19 @@ export default function PianoQualita() {
 
     try {
       const [commRes, persRes, azRes, phasesRes, cmeRes, docsRes, checkRes] = await Promise.all([
-        supabase.from("commessa_data").select("*").eq("id", commessaId).maybeSingle(),
-        supabase.from("persons").select("nome, ruolo, azienda").eq("commessa_id", commessaId),
-        supabase.from("aziende").select("nome, tipo").eq("commessa_id", commessaId),
-        supabase.from("cronoprogramma_phases").select("name, progress, parent_id").eq("commessa_id", commessaId).order("sort_order"),
-        supabase.from("cme_rows").select("codice, descrizione, unita_misura, quantita, categoria").eq("commessa_id", commessaId).order("sort_order"),
-        supabase.from("documents").select("file_name, section, ai_summary, ai_extracted_data").eq("commessa_id", commessaId),
-        supabase.from("checklist_documenti").select("nome, indispensabile").eq("commessa_id", commessaId).order("sort_order"),
+        supabase.from("cm_commessa_data").select("*").eq("id", commessaId).maybeSingle(),
+        supabase.from("cm_persons").select("nome, ruolo, azienda").eq("cm_commessa_id", commessaId),
+        supabase.from("cm_aziende").select("nome, tipo").eq("cm_commessa_id", commessaId),
+        supabase.from("cm_cronoprogramma_phases").select("name, progress, parent_id").eq("cm_commessa_id", commessaId).order("sort_order"),
+        supabase.from("cm_cme_rows").select("codice, descrizione, unita_misura, quantita, categoria").eq("cm_commessa_id", commessaId).order("sort_order"),
+        supabase.from("cm_documents").select("file_name, section, ai_summary, ai_extracted_data").eq("cm_commessa_id", commessaId),
+        supabase.from("cm_checklist_documenti").select("nome, indispensabile").eq("cm_commessa_id", commessaId).order("sort_order"),
       ]);
 
       const commessa = commRes.data;
       if (commessa) setCommessaMeta(commessa);
 
-      const { data: result, error } = await invokeWithRetry<PdqData>("generate-pdq", {
+      const { data: result, error } = await invokeWithRetry<PdqData>("cm-generate-pdq", {
         body: {
           commessa,
           persons: persRes.data || [],
@@ -104,10 +105,10 @@ export default function PianoQualita() {
       setPdqData(result);
       setRevision(newRevision);
       setHasUnsavedChanges(false);
-      toast.success(`Piano di Qualità generato — Revisione ${String(newRevision).padStart(2, "0")}`);
+      toast({ title: `Piano di Qualità generato — Revisione ${String(newRevision).padStart(2, "0")}` });
     } catch (err: any) {
       console.error("PdQ generation error:", err);
-      toast.error(err.message || "Errore durante la generazione del PdQ");
+      toast({ title: err.message || "Errore durante la generazione del PdQ", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -125,7 +126,7 @@ export default function PianoQualita() {
     if (!pdqData || !commessaId) return;
     await saveToDb(pdqData, revision);
     setHasUnsavedChanges(false);
-    toast.success("Modifiche salvate");
+    toast({ title: "Modifiche salvate" });
   }, [pdqData, commessaId, revision, saveToDb]);
 
   const handleLoadRevision = useCallback((data: PdqData, rev: number) => {
@@ -133,7 +134,7 @@ export default function PianoQualita() {
     setRevision(rev);
     setHasUnsavedChanges(false);
     setEditMode(false);
-    toast.info(`Caricata revisione ${String(rev).padStart(2, "0")}`);
+    toast({ title: `Caricata revisione ${String(rev).padStart(2, "0")}` });
   }, []);
 
   const handleExportPdf = async () => {
@@ -154,10 +155,10 @@ export default function PianoQualita() {
       a.download = `PdQ_${commessaMeta.commessa_consortile || "export"}_Rev${String(revision).padStart(2, "0")}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("PDF esportato");
+      toast({ title: "PDF esportato" });
     } catch (err) {
       console.error(err);
-      toast.error("Errore nell'esportazione PDF");
+      toast({ title: "Errore nell'esportazione PDF", variant: "destructive" });
     }
   };
 

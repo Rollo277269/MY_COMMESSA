@@ -65,7 +65,7 @@ export function ImportCronoprogrammaDialog({ open, onOpenChange, onConfirm, init
         return;
       }
 
-      const { data, error } = await invokeWithRetry<any>("parse-cronoprogramma", {
+      const { data, error } = await invokeWithRetry<any>("cm-parse-cronoprogramma", {
         body: { textContent },
       });
 

@@ -143,13 +143,13 @@ export default function ReportCommessa() {
     setLoading(true);
 
     const [commRes, docsRes, persRes, phasesRes, cmeRes, proRes, checklistRes] = await Promise.all([
-      supabase.from("commessa_data").select("*").eq("id", commessaId).maybeSingle(),
-      supabase.from("documents").select("id, section, file_name").eq("commessa_id", commessaId),
-      supabase.from("persons").select("id, azienda").eq("commessa_id", commessaId),
-      supabase.from("cronoprogramma_phases").select("id, parent_id, progress, name, sort_order").eq("commessa_id", commessaId),
-      supabase.from("cme_rows").select("id, importo").eq("commessa_id", commessaId),
-      supabase.from("proroghe").select("giorni, motivo, nuova_data_fine").eq("commessa_id", commessaId).order("nuova_data_fine"),
-      supabase.from("checklist_documenti").select("nome, indispensabile").eq("commessa_id", commessaId).eq("indispensabile", true).order("sort_order"),
+      supabase.from("cm_commessa_data").select("*").eq("id", commessaId).maybeSingle(),
+      supabase.from("cm_documents").select("id, section, file_name").eq("cm_commessa_id", commessaId),
+      supabase.from("cm_persons").select("id, azienda").eq("cm_commessa_id", commessaId),
+      supabase.from("cm_cronoprogramma_phases").select("id, parent_id, progress, name, sort_order").eq("cm_commessa_id", commessaId),
+      supabase.from("cm_cme_rows").select("id, importo").eq("cm_commessa_id", commessaId),
+      supabase.from("cm_proroghe").select("giorni, motivo, nuova_data_fine").eq("cm_commessa_id", commessaId).order("nuova_data_fine"),
+      supabase.from("cm_checklist_documenti").select("nome, indispensabile").eq("cm_commessa_id", commessaId).eq("indispensabile", true).order("sort_order"),
     ]);
 
     if (commRes.data) setCommessa(commRes.data as CommessaData);
@@ -185,7 +185,7 @@ export default function ReportCommessa() {
     if (checklistItems.length > 0 && docNames.length > 0) {
       setChecklistLoading(true);
       try {
-        const { data: matchResult, error: matchError } = await invokeWithRetry<any>("match-checklist", {
+        const { data: matchResult, error: matchError } = await invokeWithRetry<any>("cm-match-checklist", {
           body: {
             checklistItems: checklistItems.map(i => i.nome),
             documentNames: docNames,

@@ -101,13 +101,13 @@ export function VoiceDictationDialog({ open, onOpenChange, section, onComplete }
       const filePath = `${section}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("documents")
+        .from("cm_documents")
         .upload(filePath, blob);
 
       if (uploadError) throw uploadError;
 
       const { error: insertError } = await supabase
-        .from("documents")
+        .from("cm_documents")
         .insert({
           file_name: fileName,
           file_path: filePath,

@@ -56,9 +56,9 @@ export default function ScadenzarioPage() {
     if (!commessaId) return;
     setLoading(true);
     const { data } = await supabase
-      .from("scadenze")
+      .from("cm_scadenze")
       .select("*")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .order("data_scadenza", { ascending: true });
     setScadenze((data as any[]) || []);
     setLoading(false);
@@ -67,7 +67,7 @@ export default function ScadenzarioPage() {
   useEffect(() => { fetchScadenze(); }, [commessaId]);
 
   const handleDelete = async (id: string) => {
-    await supabase.from("scadenze").delete().eq("id", id);
+    await supabase.from("cm_scadenze").delete().eq("id", id);
     toast({ title: "Scadenza eliminata" });
     fetchScadenze();
   };

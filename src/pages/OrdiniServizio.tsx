@@ -43,7 +43,7 @@ export default function OrdiniServizioPage() {
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
   const handleDelete = async (id: string, filePath: string) => {
-    await supabase.storage.from('documents').remove([filePath]);
+    await supabase.storage.from('cm-documents').remove([filePath]);
     await supabase.from('documents').delete().eq('id', id);
     if (selectedDoc?.id === id) setSelectedDoc(null);
     toast({ title: "Documento eliminato" });

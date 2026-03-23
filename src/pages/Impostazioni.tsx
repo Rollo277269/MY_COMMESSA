@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { useCommessa } from "@/contexts/CommessaContext";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { Settings2, Plus, Trash2, Pencil, Check, X, Tag, GripVertical, Users, ShieldCheck, Crown, Eye, ClipboardCheck, Copy, Loader2, Search, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,9 +32,9 @@ interface Centro {
 interface UserWithRole {
   user_id: string;
   email: string;
-  display_name: string | null;
+  nome: string;
+  cognome: string | null;
   role: string;
-  role_id: string | null;
 }
 
 const DEFAULT_CENTRI_CSSR = [
@@ -60,62 +61,42 @@ const DEFAULT_CENTRI_CONSORZIATA = [
   { nome: "Lavori extra-contratto", tipo: "ricavo" as const, sezione: "consorziata" as const },
 ];
 
-const ROLE_CONFIG = {
-  admin: { label: "Admin", icon: Crown, color: "text-warning", bg: "bg-warning/10 border-warning/30" },
-  editor: { label: "Operatore", icon: ShieldCheck, color: "text-primary", bg: "bg-primary/10 border-primary/30" },
-  viewer: { label: "Osservatore", icon: Eye, color: "text-muted-foreground", bg: "bg-muted border-border" },
+const ROLE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string }> = {
+  ADMIN: { label: "Admin", icon: Crown, color: "text-warning", bg: "bg-warning/10 border-warning/30" },
+  DIREZIONE: { label: "Direzione", icon: ShieldCheck, color: "text-primary", bg: "bg-primary/10 border-primary/30" },
+  UFFICIO_AMMINISTRATIVO: { label: "Ufficio Amm.", icon: ClipboardCheck, color: "text-blue-600", bg: "bg-blue-50 border-blue-200" },
+  UFFICIO_GARE: { label: "Ufficio Gare", icon: Tag, color: "text-violet-600", bg: "bg-violet-50 border-violet-200" },
+  SOCIO: { label: "Socio", icon: Eye, color: "text-muted-foreground", bg: "bg-muted border-border" },
 };
 
 /* ═══════════════════════════════════════════════════════════════════
    User Roles Management Section
    ═══════════════════════════════════════════════════════════════════ */
 function UserRolesSection() {
+  const { profile, isAdmin, refetch } = useUserProfile();
+  const { toast } = useToast();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string>("viewer");
   const [saving, setSaving] = useState<string | null>(null);
+
+  const currentUserId = profile?.id ?? null;
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) setCurrentUserId(user.id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, email, nome, cognome, ruolo");
 
-    // Get all profiles
-    const { data: profiles } = await supabase.from("profiles").select("id, email, display_name");
-
-    // Get all roles - we need to use service-scoped approach
-    // Since RLS only lets users see their own roles, we'll load what we can
-    // For admin users, the "Admins can manage roles" policy gives full access
-    const { data: roles } = await supabase.from("user_roles").select("id, user_id, role");
-
-    const roleMap = new Map<string, { role: string; role_id: string }>();
-    (roles || []).forEach((r: any) => {
-      roleMap.set(r.user_id, { role: r.role, role_id: r.id });
-    });
-
-    // Determine current user's role
-    if (user) {
-      const myRole = roleMap.get(user.id);
-      setCurrentUserRole(myRole?.role || "viewer");
-    }
-
-    const userList: UserWithRole[] = (profiles || []).map((p: any) => {
-      const r = roleMap.get(p.id);
-      return {
-        user_id: p.id,
-        email: p.email || "—",
-        display_name: p.display_name,
-        role: r?.role || "viewer",
-        role_id: r?.role_id || null,
-      };
-    });
-
-    setUsers(userList.sort((a, b) => {
-      const order = { admin: 0, editor: 1, viewer: 2 };
-      return (order[a.role as keyof typeof order] ?? 3) - (order[b.role as keyof typeof order] ?? 3);
+    const userList: UserWithRole[] = (profiles || []).map((p: any) => ({
+      user_id: p.id,
+      email: p.email || "—",
+      nome: p.nome || "—",
+      cognome: p.cognome || null,
+      role: p.ruolo || "SOCIO",
     }));
+
+    const roleOrder: Record<string, number> = { ADMIN: 0, DIREZIONE: 1, UFFICIO_AMMINISTRATIVO: 2, UFFICIO_GARE: 3, SOCIO: 4 };
+    setUsers(userList.sort((a, b) => (roleOrder[a.role] ?? 9) - (roleOrder[b.role] ?? 9)));
     setLoading(false);
   }, []);
 
@@ -124,30 +105,20 @@ function UserRolesSection() {
   const handleRoleChange = async (userId: string, newRole: string) => {
     setSaving(userId);
     try {
-      // Check if role record exists
-      const existing = users.find(u => u.user_id === userId);
-      if (existing?.role_id) {
-        const { error } = await supabase
-          .from("user_roles")
-          .update({ role: newRole } as any)
-          .eq("id", existing.role_id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("user_roles")
-          .insert({ user_id: userId, role: newRole } as any);
-        if (error) throw error;
-      }
-      toast.success(`Ruolo aggiornato a ${ROLE_CONFIG[newRole as keyof typeof ROLE_CONFIG]?.label || newRole}`);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ ruolo: newRole as any })
+        .eq("id", userId);
+      if (error) throw error;
+      toast({ title: `Ruolo aggiornato a ${ROLE_CONFIG[newRole]?.label || newRole}` });
+      refetch();
       await loadUsers();
     } catch (err: any) {
-      toast.error(`Errore: ${err.message}`);
+      toast({ title: `Errore: ${err.message}`, variant: "destructive" });
     } finally {
       setSaving(null);
     }
   };
-
-  const isAdmin = currentUserRole === "admin";
 
   return (
     <div className="bg-card rounded-lg border border-border shadow-card overflow-hidden">
@@ -165,8 +136,8 @@ function UserRolesSection() {
       </div>
 
       <div className="p-4 pb-2">
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          {(["admin", "editor", "viewer"] as const).map(role => {
+        <div className="grid grid-cols-5 gap-2 mb-4">
+          {(["ADMIN", "DIREZIONE", "UFFICIO_AMMINISTRATIVO", "UFFICIO_GARE", "SOCIO"] as const).map(role => {
             const config = ROLE_CONFIG[role];
             const count = users.filter(u => u.role === role).length;
             return (
@@ -203,7 +174,7 @@ function UserRolesSection() {
             </TableRow>
           ) : (
             users.map(u => {
-              const config = ROLE_CONFIG[u.role as keyof typeof ROLE_CONFIG] || ROLE_CONFIG.viewer;
+              const config = ROLE_CONFIG[u.role] || ROLE_CONFIG.SOCIO;
               const isCurrentUser = u.user_id === currentUserId;
               const canEdit = isAdmin && !isCurrentUser;
 
@@ -214,7 +185,7 @@ function UserRolesSection() {
                       <div className={cn("w-7 h-7 rounded-full flex items-center justify-center", config.bg)}>
                         <config.icon className={cn("w-3.5 h-3.5", config.color)} />
                       </div>
-                      <span>{u.display_name || u.email?.split("@")[0] || "—"}</span>
+                      <span>{[u.nome, u.cognome].filter(Boolean).join(" ") || u.email?.split("@")[0] || "—"}</span>
                       {isCurrentUser && (
                         <Badge variant="outline" className="text-[9px] ml-1">Tu</Badge>
                       )}
@@ -232,21 +203,14 @@ function UserRolesSection() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="admin">
-                            <div className="flex items-center gap-1.5">
-                              <Crown className="w-3.5 h-3.5 text-warning" /> Admin
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="editor">
-                            <div className="flex items-center gap-1.5">
-                              <ShieldCheck className="w-3.5 h-3.5 text-primary" /> Operatore
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="viewer">
-                            <div className="flex items-center gap-1.5">
-                              <Eye className="w-3.5 h-3.5 text-muted-foreground" /> Osservatore
-                            </div>
-                          </SelectItem>
+                          {Object.entries(ROLE_CONFIG).map(([value, cfg]) => (
+                            <SelectItem key={value} value={value}>
+                              <div className="flex items-center gap-1.5">
+                                <cfg.icon className={cn("w-3.5 h-3.5", cfg.color)} />
+                                {cfg.label}
+                              </div>
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     ) : (
@@ -312,9 +276,9 @@ function ChecklistSection() {
     if (!commessaId) return;
     setLoading(true);
     const { data } = await supabase
-      .from("checklist_documenti")
+      .from("cm_checklist_documenti")
       .select("*")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .order("sort_order");
 
     const loaded = (data as ChecklistItem[]) || [];
@@ -322,14 +286,14 @@ function ChecklistSection() {
     if (loaded.length === 0) {
       // Seed default checklist
       const defaults = DEFAULT_CHECKLIST.map((nome, i) => ({
-        commessa_id: commessaId,
+        cm_commessa_id: commessaId,
         nome,
         sezione: "documenti",
         indispensabile: i < 14, // First 14 are required by default
         sort_order: i,
       }));
       const { data: inserted } = await supabase
-        .from("checklist_documenti")
+        .from("cm_checklist_documenti")
         .insert(defaults)
         .select();
       setItems((inserted as ChecklistItem[]) || []);
@@ -344,35 +308,35 @@ function ChecklistSection() {
   const toggleIndispensabile = async (id: string, current: boolean) => {
     setItems(prev => prev.map(i => i.id === id ? { ...i, indispensabile: !current } : i));
     const { error } = await supabase
-      .from("checklist_documenti")
+      .from("cm_checklist_documenti")
       .update({ indispensabile: !current })
       .eq("id", id);
     if (error) {
-      toast.error("Errore aggiornamento");
+      toast({ title: "Errore aggiornamento", variant: "destructive" });
       loadChecklist();
     }
   };
 
   const handleAdd = async () => {
     if (!commessaId || !newNome.trim()) return;
-    const { error } = await supabase.from("checklist_documenti").insert({
-      commessa_id: commessaId,
+    const { error } = await supabase.from("cm_checklist_documenti").insert({
+      cm_commessa_id: commessaId,
       nome: newNome.trim(),
       sezione: "documenti",
       indispensabile: false,
       sort_order: items.length,
     });
-    if (error) { toast.error("Errore inserimento"); return; }
-    toast.success("Documento aggiunto alla checklist");
+    if (error) { toast({ title: "Errore inserimento", variant: "destructive" }); return; }
+    toast({ title: "Documento aggiunto alla checklist" });
     setNewNome("");
     setAdding(false);
     loadChecklist();
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("checklist_documenti").delete().eq("id", id);
-    if (error) { toast.error("Errore eliminazione"); return; }
-    toast.success("Voce rimossa");
+    const { error } = await supabase.from("cm_checklist_documenti").delete().eq("id", id);
+    if (error) { toast({ title: "Errore eliminazione", variant: "destructive" }); return; }
+    toast({ title: "Voce rimossa" });
     loadChecklist();
   };
 
@@ -471,6 +435,8 @@ function ChecklistSection() {
    Main Settings Page
    ═══════════════════════════════════════════════════════════════════ */
 export default function ImpostazioniPage() {
+  const { toast } = useToast();
+  const { isAdmin } = useUserProfile();
   const { commessaId } = useCommessa();
   const [centri, setCentri] = useState<Centro[]>([]);
   const [loading, setLoading] = useState(true);
@@ -513,7 +479,7 @@ export default function ImpostazioniPage() {
       return [...otherItems, ...updated].sort((a, b) => a.sort_order - b.sort_order);
     });
     for (const item of updated) {
-      await supabase.from("centri_imputazione").update({ sort_order: item.sort_order }).eq("id", item.id);
+      await supabase.from("cm_centri_imputazione").update({ sort_order: item.sort_order }).eq("id", item.id);
     }
   }, []);
 
@@ -521,9 +487,9 @@ export default function ImpostazioniPage() {
     if (!commessaId) return;
     setLoading(true);
     const { data } = await supabase
-      .from("centri_imputazione")
+      .from("cm_centri_imputazione")
       .select("*")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .order("sort_order");
 
     const loaded = (data as Centro[]) || [];
@@ -531,12 +497,12 @@ export default function ImpostazioniPage() {
     if (loaded.length === 0) {
       const all = [...DEFAULT_CENTRI_CSSR, ...DEFAULT_CENTRI_CONSORZIATA].map((d, i) => ({
         ...d,
-        commessa_id: commessaId,
+        cm_commessa_id: commessaId,
         is_default: true,
         sort_order: i,
         regola_denominazione: null,
       }));
-      const { data: inserted } = await supabase.from("centri_imputazione").insert(all).select();
+      const { data: inserted } = await supabase.from("cm_centri_imputazione").insert(all).select();
       setCentri((inserted as Centro[]) || []);
     } else {
       setCentri(loaded);
@@ -554,12 +520,12 @@ export default function ImpostazioniPage() {
 
   const saveEdit = async () => {
     if (!editingId || !editNome.trim()) return;
-    const { error } = await supabase.from("centri_imputazione").update({
+    const { error } = await supabase.from("cm_centri_imputazione").update({
       nome: editNome.trim(),
       regola_denominazione: editRegola.trim() || null,
     }).eq("id", editingId);
-    if (error) { toast.error("Errore aggiornamento"); return; }
-    toast.success("Centro aggiornato");
+    if (error) { toast({ title: "Errore aggiornamento", variant: "destructive" }); return; }
+    toast({ title: "Centro aggiornato" });
     setEditingId(null);
     loadData();
   };
@@ -567,9 +533,9 @@ export default function ImpostazioniPage() {
   const cancelEdit = () => setEditingId(null);
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("centri_imputazione").delete().eq("id", id);
-    if (error) { toast.error("Errore eliminazione"); return; }
-    toast.success("Centro eliminato");
+    const { error } = await supabase.from("cm_centri_imputazione").delete().eq("id", id);
+    if (error) { toast({ title: "Errore eliminazione", variant: "destructive" }); return; }
+    toast({ title: "Centro eliminato" });
     loadData();
   };
 
@@ -580,19 +546,19 @@ export default function ImpostazioniPage() {
     setApplyingAll(true);
     try {
       // Get all other commesse
-      const { data: allCommesse } = await supabase.from("commessa_data").select("id").neq("id", commessaId);
+      const { data: allCommesse } = await supabase.from("cm_commessa_data").select("id").neq("id", commessaId);
       if (!allCommesse || allCommesse.length === 0) {
-        toast.info("Nessun'altra commessa trovata");
+        toast({ title: "Nessun'altra commessa trovata" });
         setApplyingAll(false);
         return;
       }
 
       for (const c of allCommesse) {
         // Delete existing centri for this commessa
-        await supabase.from("centri_imputazione").delete().eq("commessa_id", c.id);
+        await supabase.from("cm_centri_imputazione").delete().eq("cm_commessa_id", c.id);
         // Insert current centri
         const newCentri = centri.map((centro, i) => ({
-          commessa_id: c.id,
+          cm_commessa_id: c.id,
           nome: centro.nome,
           tipo: centro.tipo,
           sezione: centro.sezione,
@@ -600,11 +566,11 @@ export default function ImpostazioniPage() {
           sort_order: i,
           regola_denominazione: centro.regola_denominazione,
         }));
-        await supabase.from("centri_imputazione").insert(newCentri);
+        await supabase.from("cm_centri_imputazione").insert(newCentri);
       }
-      toast.success(`Centri applicati a ${allCommesse.length} commesse`);
+      toast({ title: `Centri applicati a ${allCommesse.length} commesse` });
     } catch {
-      toast.error("Errore durante l'applicazione");
+      toast({ title: "Errore durante l'applicazione", variant: "destructive" });
     } finally {
       setApplyingAll(false);
     }
@@ -612,8 +578,8 @@ export default function ImpostazioniPage() {
 
   const handleAdd = async () => {
     if (!commessaId || !addingTo || !newNome.trim()) return;
-    const { error } = await supabase.from("centri_imputazione").insert({
-      commessa_id: commessaId,
+    const { error } = await supabase.from("cm_centri_imputazione").insert({
+      cm_commessa_id: commessaId,
       nome: newNome.trim(),
       tipo: addingTo.tipo,
       sezione: addingTo.sezione,
@@ -621,8 +587,8 @@ export default function ImpostazioniPage() {
       sort_order: centri.length,
       regola_denominazione: newRegola.trim() || null,
     });
-    if (error) { toast.error("Errore inserimento"); return; }
-    toast.success("Centro aggiunto");
+    if (error) { toast({ title: "Errore inserimento", variant: "destructive" }); return; }
+    toast({ title: "Centro aggiunto" });
     setAddingTo(null);
     setNewNome("");
     setNewRegola("");
@@ -810,9 +776,11 @@ export default function ImpostazioniPage() {
             <TabsTrigger value="centri">
               <Tag className="w-3.5 h-3.5 mr-1.5" /> Centri di Imputazione
             </TabsTrigger>
-            <TabsTrigger value="ruoli">
-              <Users className="w-3.5 h-3.5 mr-1.5" /> Ruoli Utenti
-            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="ruoli">
+                <Users className="w-3.5 h-3.5 mr-1.5" /> Ruoli Utenti
+              </TabsTrigger>
+            )}
             <TabsTrigger value="checklist">
               <ClipboardCheck className="w-3.5 h-3.5 mr-1.5" /> Checklist Documenti
             </TabsTrigger>
@@ -865,15 +833,17 @@ export default function ImpostazioniPage() {
             </Tabs>
           </TabsContent>
 
-          <TabsContent value="ruoli">
-            <p className="text-sm text-muted-foreground mb-5">
-              Gestisci i ruoli degli utenti dell'applicazione. I ruoli determinano le azioni che ogni utente può eseguire, incluse le operazioni tramite Rita.
-              <strong className="ml-1">Admin</strong> = accesso completo,{" "}
-              <strong>Operatore</strong> = lettura e scrittura,{" "}
-              <strong>Osservatore</strong> = sola lettura.
-            </p>
-            <UserRolesSection />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="ruoli">
+              <p className="text-sm text-muted-foreground mb-5">
+                Gestisci i ruoli degli utenti dell'applicazione. I ruoli determinano le azioni che ogni utente può eseguire, incluse le operazioni tramite Rita.
+                <strong className="ml-1">Admin</strong> = accesso completo,{" "}
+                <strong>Operatore</strong> = lettura e scrittura,{" "}
+                <strong>Osservatore</strong> = sola lettura.
+              </p>
+              <UserRolesSection />
+            </TabsContent>
+          )}
 
           <TabsContent value="checklist">
             <p className="text-sm text-muted-foreground mb-5">

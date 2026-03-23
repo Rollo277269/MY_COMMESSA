@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCommessa } from "@/contexts/CommessaContext";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ interface Commessa {
   foto_url: string | null;
   created_at: string;
   stato: string;
+  user_id: string | null;
 }
 
 interface CommessaStats {
@@ -86,15 +88,18 @@ export default function SelezionaCommessaPage() {
       return saved ? new Set(JSON.parse(saved)) : new Set<keyof ColWidth>();
     } catch { return new Set<keyof ColWidth>(); }
   });
+  const [ownerMap, setOwnerMap] = useState<Record<string, string>>({});
+  const [ownerFilter, setOwnerFilter] = useState("");
   const { setCommessaId } = useCommessa();
+  const { canViewAllCommesse } = useUserProfile();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const fetchCommesse = async () => {
     setLoading(true);
     const { data } = await supabase.
-    from("commessa_data").
-    select("id, committente, oggetto_lavori, commessa_consortile, impresa_assegnataria, foto_url, created_at, stato").
+    from("cm_commessa_data").
+    select("id, committente, oggetto_lavori, commessa_consortile, impresa_assegnataria, foto_url, created_at, stato, user_id").
     order("commessa_consortile", { ascending: true, nullsFirst: false });
     const list = (data as Commessa[] || []).sort((a, b) => {
       const numA = parseFloat((a.commessa_consortile || "").replace(/[^\d.]/g, "")) || 0;
@@ -103,16 +108,31 @@ export default function SelezionaCommessaPage() {
     });
     setCommesse(list);
 
+    if (canViewAllCommesse && list.length > 0) {
+      const ownerIds = [...new Set(list.map((c) => c.user_id).filter(Boolean))] as string[];
+      if (ownerIds.length > 0) {
+        const { data: owners } = await supabase
+          .from("profiles")
+          .select("id, nome, cognome, email")
+          .in("id", ownerIds);
+        const map: Record<string, string> = {};
+        for (const o of owners || []) {
+          map[(o as any).id] = [(o as any).nome, (o as any).cognome].filter(Boolean).join(" ") || (o as any).email || (o as any).id;
+        }
+        setOwnerMap(map);
+      }
+    }
+
     if (list.length > 0) {
       const ids = list.map((c) => c.id);
       const [docsRes, phasesRes] = await Promise.all([
-      supabase.from("documents").select("id, commessa_id").in("commessa_id", ids),
-      supabase.from("cronoprogramma_phases").select("id, commessa_id, progress").in("commessa_id", ids)]
+      supabase.from("cm_documents").select("id, cm_commessa_id").in("cm_commessa_id", ids),
+      supabase.from("cm_cronoprogramma_phases").select("id, cm_commessa_id, progress").in("cm_commessa_id", ids)]
       );
       const statsMap: Record<string, CommessaStats> = {};
       for (const c of list) {
-        const docs = (docsRes.data || []).filter((d) => d.commessa_id === c.id);
-        const phases = (phasesRes.data || []).filter((p) => p.commessa_id === c.id);
+        const docs = (docsRes.data || []).filter((d) => d.cm_commessa_id === c.id);
+        const phases = (phasesRes.data || []).filter((p) => p.cm_commessa_id === c.id);
         const avgProgress = phases.length > 0 ?
         Math.round(phases.reduce((sum, p) => sum + (p.progress || 0), 0) / phases.length) :
         0;
@@ -141,7 +161,7 @@ export default function SelezionaCommessaPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {setCreating(false);return;}
     const { data, error } = await supabase.
-    from("commessa_data").
+    from("cm_commessa_data").
     insert({
       commessa_consortile: newForm.commessa_consortile || null,
       committente: newForm.committente || null,
@@ -178,15 +198,15 @@ export default function SelezionaCommessaPage() {
     const ext = file.name.split(".").pop();
     const path = `${uploadingPhotoId}/cover.${ext}`;
     const { error: uploadError } = await supabase.storage.
-    from("commessa-photos").
+    from("cm-commessa-photos").
     upload(path, file, { upsert: true });
     if (uploadError) {
       toast({ title: "Errore upload", description: uploadError.message, variant: "destructive" });
       return;
     }
-    const { data: { publicUrl } } = supabase.storage.from("commessa-photos").getPublicUrl(path);
+    const { data: { publicUrl } } = supabase.storage.from("cm-commessa-photos").getPublicUrl(path);
     await supabase.
-    from("commessa_data").
+    from("cm_commessa_data").
     update({ foto_url: publicUrl } as any).
     eq("id", uploadingPhotoId);
     toast({ title: "Foto aggiornata" });
@@ -280,7 +300,7 @@ export default function SelezionaCommessaPage() {
 
   const handleStatusChange = async (commessaId: string, newStatus: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await supabase.from("commessa_data").update({ stato: newStatus } as any).eq("id", commessaId);
+    await supabase.from("cm_commessa_data").update({ stato: newStatus } as any).eq("id", commessaId);
     setCommesse((prev) => prev.map((c) => c.id === commessaId ? { ...c, stato: newStatus } : c));
   };
 
@@ -296,6 +316,10 @@ export default function SelezionaCommessaPage() {
     // Status filter
     if (statusFilter !== "all") {
       result = result.filter((c) => getCommessaStatus(c.id) === statusFilter);
+    }
+    // Owner filter (solo per ruoli elevati)
+    if (ownerFilter) {
+      result = result.filter((c) => c.user_id === ownerFilter);
     }
     // Column filters
     for (const [col, allowedValues] of Object.entries(columnFilters)) {
@@ -314,7 +338,7 @@ export default function SelezionaCommessaPage() {
       });
     }
     return result;
-  }, [commesse, searchQuery, statusFilter, sortKey, sortDir, columnFilters, getCellValue, getCommessaStatus]);
+  }, [commesse, searchQuery, statusFilter, sortKey, sortDir, columnFilters, ownerFilter, getCellValue, getCommessaStatus]);
 
   const handlePhotoDrop = async (commessaId: string, file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -322,15 +346,15 @@ export default function SelezionaCommessaPage() {
     const ext = file.name.split(".").pop();
     const path = `${commessaId}/cover.${ext}`;
     const { error: uploadError } = await supabase.storage.
-    from("commessa-photos").
+    from("cm-commessa-photos").
     upload(path, file, { upsert: true });
     if (uploadError) {
       toast({ title: "Errore upload", description: uploadError.message, variant: "destructive" });
       setUploadingPhotoId(null);
       return;
     }
-    const { data: { publicUrl } } = supabase.storage.from("commessa-photos").getPublicUrl(path);
-    await supabase.from("commessa_data").update({ foto_url: publicUrl } as any).eq("id", commessaId);
+    const { data: { publicUrl } } = supabase.storage.from("cm-commessa-photos").getPublicUrl(path);
+    await supabase.from("cm_commessa_data").update({ foto_url: publicUrl } as any).eq("id", commessaId);
     toast({ title: "Foto aggiornata" });
     setUploadingPhotoId(null);
     fetchCommesse();
@@ -541,7 +565,7 @@ export default function SelezionaCommessaPage() {
                     e.preventDefault();
                     setDropTargetStatus(null);
                     if (draggingCommessaId && opt.value !== "all") {
-                      await supabase.from("commessa_data").update({ stato: opt.value } as any).eq("id", draggingCommessaId);
+                      await supabase.from("cm_commessa_data").update({ stato: opt.value } as any).eq("id", draggingCommessaId);
                       setCommesse((prev) => prev.map((c) => c.id === draggingCommessaId ? { ...c, stato: opt.value } : c));
                       setDraggingCommessaId(null);
                     }
@@ -567,6 +591,19 @@ export default function SelezionaCommessaPage() {
                 );
               })}
             </div>
+
+            {/* Filtro per responsabile (solo ruoli elevati) */}
+            {canViewAllCommesse && Object.keys(ownerMap).length > 0 && (
+              <select
+                value={ownerFilter}
+                onChange={(e) => setOwnerFilter(e.target.value)}
+                className="text-xs h-8 px-2 rounded-md border border-border bg-card text-muted-foreground cursor-pointer">
+                <option value="">Tutti i soci</option>
+                {Object.entries(ownerMap).sort((a, b) => a[1].localeCompare(b[1], "it")).map(([id, name]) => (
+                  <option key={id} value={id}>{name}</option>
+                ))}
+              </select>
+            )}
 
             {/* Active column filters */}
             {activeFilterCount > 0 &&
@@ -780,6 +817,11 @@ export default function SelezionaCommessaPage() {
                         </th>);
 
                     })}
+                    {canViewAllCommesse && (
+                      <th className="text-left font-medium text-muted-foreground px-3 py-3 select-none" style={{ width: 150 }}>
+                        Responsabile
+                      </th>
+                    )}
                     <th className="w-10" />
                   </tr>
                 </thead>
@@ -809,6 +851,11 @@ export default function SelezionaCommessaPage() {
                             default: return null;
                           }
                         })}
+                        {canViewAllCommesse && (
+                          <td className="px-3 py-2 text-xs text-muted-foreground" style={{ width: 150 }}>
+                            {ownerMap[c.user_id || ""] || "—"}
+                          </td>
+                        )}
                         <td className="px-3 py-2">
                           <ArrowRight className="w-4 h-4 text-muted-foreground" />
                         </td>

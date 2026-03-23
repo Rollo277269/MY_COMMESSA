@@ -23,6 +23,10 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.development
+.env.production
+.env.*.local
 
 # Nested project (separate repo)
 my-agis-hub-main/
+.vercel

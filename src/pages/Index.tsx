@@ -357,7 +357,7 @@ const Index = () => {
   const loadCachedSummary = useCallback(async () => {
     if (!commessaId) return;
     const { data } = await supabase
-      .from("commessa_data")
+      .from("cm_commessa_data")
       .select("project_summary")
       .eq("id", commessaId)
       .maybeSingle();
@@ -371,7 +371,7 @@ const Index = () => {
     setSummaryLoading(true);
     setSummaryError(null);
     try {
-      const { data, error } = await invokeWithRetry<any>('project-summary', { body: { commessaId } });
+      const { data, error } = await invokeWithRetry<any>('cm-project-summary', { body: { commessaId } });
       if (error) throw error;
       setProjectSummary(data?.summary || null);
       if (data?.cached) {
@@ -424,7 +424,7 @@ const Index = () => {
   const syncFromDocuments = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await invokeWithRetry<any>('extract-commessa', { body: { commessaId } });
+      const { data, error } = await invokeWithRetry<any>('cm-extract-commessa', { body: { commessaId } });
       if (error) throw error;
       toast({
         title: "Sincronizzazione completata",

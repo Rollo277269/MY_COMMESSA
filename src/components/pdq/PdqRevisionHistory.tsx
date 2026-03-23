@@ -30,9 +30,9 @@ export function PdqRevisionHistory({ commessaId, currentRevision, onLoadRevision
   const loadRevisions = async () => {
     setLoading(true);
     const { data } = await supabase
-      .from("pdq_documents")
+      .from("cm_pdq_documents")
       .select("id, revision, created_at, sections")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .order("revision", { ascending: false });
     if (data) {
       setRevisions(data.map(r => ({

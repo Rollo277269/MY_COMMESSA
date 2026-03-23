@@ -75,7 +75,7 @@ export default function CronoprogrammaPage() {
     // Persist all phases back to DB
     const { format: fmt } = await import("date-fns");
     for (const p of restored) {
-      await supabase.from("cronoprogramma_phases").update({
+      await supabase.from("cm_cronoprogramma_phases").update({
         name: p.name,
         start_date: fmt(p.startDate, "yyyy-MM-dd"),
         end_date: fmt(p.endDate, "yyyy-MM-dd"),
@@ -83,7 +83,7 @@ export default function CronoprogrammaPage() {
       }).eq("id", p.id);
       if (p.subPhases) {
         for (const s of p.subPhases) {
-          await supabase.from("cronoprogramma_phases").update({
+          await supabase.from("cm_cronoprogramma_phases").update({
             name: s.name,
             start_date: fmt(s.startDate, "yyyy-MM-dd"),
             end_date: fmt(s.endDate, "yyyy-MM-dd"),
@@ -112,7 +112,7 @@ export default function CronoprogrammaPage() {
     queryKey: ["commessa-dates"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("commessa_data")
+        .from("cm_commessa_data")
         .select("data_consegna_lavori, data_scadenza_contratto")
         .limit(1)
         .maybeSingle();
@@ -331,7 +331,36 @@ export default function CronoprogrammaPage() {
     }
   }, [localPhases]);
 
-  const handleDepSave = useCallback((phaseId: string, dependsOn: string[]) => updateDependencies.mutate({ id: phaseId, dependsOn }), [updateDependencies]);
+  const handleDepSave = useCallback((phaseId: string, dependsOn: string[]) => {
+    // [L09] Cycle detection: verifica che aggiungere queste dipendenze non crei un ciclo
+    const flat = localPhases.flatMap((p) => [p, ...(p.subPhases || [])]);
+    // Simula il grafo con le nuove dipendenze
+    const depMap = new Map<string, string[]>();
+    for (const ph of flat) {
+      depMap.set(ph.id, ph.dependsOn || []);
+    }
+    depMap.set(phaseId, dependsOn);
+    // DFS da phaseId: se raggiungiamo phaseId di nuovo, c'è un ciclo
+    const hasCycle = (startId: string): boolean => {
+      const visited = new Set<string>();
+      const stack = [...(depMap.get(startId) || [])];
+      while (stack.length > 0) {
+        const current = stack.pop()!;
+        if (current === startId) return true;
+        if (visited.has(current)) continue;
+        visited.add(current);
+        for (const dep of (depMap.get(current) || [])) {
+          stack.push(dep);
+        }
+      }
+      return false;
+    };
+    if (hasCycle(phaseId)) {
+      toast({ title: "Dipendenza ciclica", description: "Questa dipendenza crea un ciclo nel cronoprogramma e non può essere salvata." });
+      return;
+    }
+    updateDependencies.mutate({ id: phaseId, dependsOn });
+  }, [updateDependencies, localPhases]);
 
   const handleMovePhase = useCallback((id: string, newParentId: string | null, newSortOrder: number) => {
     pushUndo();

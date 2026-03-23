@@ -24,7 +24,7 @@ interface PhotoLightboxProps {
 export function PhotoLightbox({ document, onClose, onPrev, onNext, hasPrev, hasNext }: PhotoLightboxProps) {
   const publicUrl = useMemo(() => {
     if (!document) return "";
-    const { data } = supabase.storage.from("documents").getPublicUrl(document.file_path);
+    const { data } = supabase.storage.from("cm-documents").getPublicUrl(document.file_path);
     return data.publicUrl;
   }, [document?.file_path]);
 

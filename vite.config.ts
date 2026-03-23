@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    watch: {
+      ignored: ["**/my-agis-hub-main/**"],
+    },
+  },
+  optimizeDeps: {
+    entries: ["src/**/*.{ts,tsx}"],
+    exclude: [],
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

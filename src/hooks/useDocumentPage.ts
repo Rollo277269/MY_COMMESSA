@@ -18,7 +18,7 @@ export function useDocumentPage(section: DocumentSection) {
   const { commessaId } = useCommessa();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const queryKey = ["documents", section, commessaId];
+  const queryKey = ["cm_documents", section, commessaId];
 
   const invalidate = useCallback(
     () => queryClient.invalidateQueries({ queryKey }),
@@ -30,10 +30,10 @@ export function useDocumentPage(section: DocumentSection) {
     enabled: !!commessaId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("documents")
+        .from("cm_documents")
         .select("*")
         .eq("section", section)
-        .eq("commessa_id", commessaId!)
+        .eq("cm_commessa_id", commessaId!)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return sortDocumentsByDate(data || []);
@@ -43,9 +43,9 @@ export function useDocumentPage(section: DocumentSection) {
 
   const deleteMutation = useMutation({
     mutationFn: async ({ id, filePath }: { id: string; filePath: string }) => {
-      const { error: docErr } = await supabase.from("documents").delete().eq("id", id);
+      const { error: docErr } = await supabase.from("cm_documents").delete().eq("id", id);
       if (docErr) throw docErr;
-      await supabase.storage.from("documents").remove([filePath]);
+      await supabase.storage.from("cm-documents").remove([filePath]);
     },
     onSuccess: () => {
       toast({ title: "Documento eliminato" });
@@ -60,7 +60,7 @@ export function useDocumentPage(section: DocumentSection) {
     mutationFn: async ({ id, aiData, fileName }: { id: string; aiData: any; fileName?: string }) => {
       const payload: any = { ai_extracted_data: aiData };
       if (fileName) payload.file_name = fileName;
-      const { error } = await supabase.from("documents").update(payload).eq("id", id);
+      const { error } = await supabase.from("cm_documents").update(payload).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {

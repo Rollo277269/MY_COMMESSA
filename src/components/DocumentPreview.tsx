@@ -23,7 +23,7 @@ export function DocumentPreview({ document, onClose }: DocumentPreviewProps) {
     setSignedUrl(null);
 
     supabase.storage
-      .from("documents")
+      .from("cm_documents")
       .createSignedUrl(document.file_path, 3600) // 1 hour
       .then(({ data, error }) => {
         if (!cancelled) {

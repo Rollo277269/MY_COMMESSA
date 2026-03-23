@@ -88,7 +88,7 @@ export default function PersonePage() {
         duplicates?: DuplicateContact[];
         message?: string;
         error?: string;
-      }>("extract-contacts", { body: { commessa_id: commessaId } });
+      }>("cm-extract-contacts", { body: { cm_commessa_id: commessaId } });
 
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -135,7 +135,7 @@ export default function PersonePage() {
 
       if (Object.keys(updateData).length > 0) {
         const { error } = await supabase
-          .from("persons")
+          .from("cm_persons")
           .update(updateData)
           .eq("id", dup.existing_id);
         if (!error) updated++;

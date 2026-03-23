@@ -109,7 +109,7 @@ export function AmbienteAnalisi({ commessaId }: Props) {
     setLoading(true);
     Promise.all([
       supabase
-        .from("commessa_data")
+        .from("cm_commessa_data")
         .select("ambiente_analisi, commessa_consortile, committente, oggetto_lavori, cup, cig, impresa_assegnataria")
         .eq("id", commessaId)
         .maybeSingle(),
@@ -142,7 +142,7 @@ export function AmbienteAnalisi({ commessaId }: Props) {
     const toSave = { ...data, revision: newRevision };
 
     const { error } = await supabase
-      .from("commessa_data")
+      .from("cm_commessa_data")
       .update({ ambiente_analisi: toSave as any })
       .eq("id", commessaId);
     setSaving(false);
@@ -160,7 +160,7 @@ export function AmbienteAnalisi({ commessaId }: Props) {
     setGenerating(true);
     try {
       const { data: result, error } = await supabase.functions.invoke(
-        "generate-ambiente-analisi",
+        "cm-generate-ambiente-analisi",
         { body: { commessaId } }
       );
 
@@ -256,7 +256,7 @@ export function AmbienteAnalisi({ commessaId }: Props) {
     setData(cleared);
     setSaving(true);
     await supabase
-      .from("commessa_data")
+      .from("cm_commessa_data")
       .update({ ambiente_analisi: cleared as any })
       .eq("id", commessaId);
     setSaved(cleared);

@@ -49,7 +49,7 @@ export default function RapportiGiornalieriPage() {
     }
     setConverting(doc.id);
     try {
-      const { data: parsed, error: fnError } = await invokeWithRetry<any>("parse-rapporto-dettatura", { body: { testo } });
+      const { data: parsed, error: fnError } = await invokeWithRetry<any>("cm-parse-rapporto-dettatura", { body: { testo } });
       if (fnError) throw fnError;
       const rapportoData: RapportoData = {
         data: parsed.data || new Date().toISOString().slice(0, 10),
@@ -65,14 +65,14 @@ export default function RapportiGiornalieriPage() {
       const pdfBlob = await generateRapportoPdf(rapportoData);
       const pdfName = doc.file_name.replace(/\.txt$/i, "") + "_Rapporto.pdf";
       const pdfPath = `rapporti-giornalieri/${pdfName}`;
-      const { error: uploadError } = await supabase.storage.from("documents").upload(pdfPath, pdfBlob, { contentType: "application/pdf" });
+      const { error: uploadError } = await supabase.storage.from("cm-documents").upload(pdfPath, pdfBlob, { contentType: "application/pdf" });
       if (uploadError) throw uploadError;
-      const { error: insertError } = await supabase.from("documents").insert([{
+      const { error: insertError } = await supabase.from("cm_documents").insert([{
         file_name: pdfName, file_path: pdfPath, file_type: "application/pdf",
         file_size: pdfBlob.size, section: "rapporti-giornalieri", ai_status: "completed",
         ai_summary: `Rapporto giornaliero del ${rapportoData.data_display} (da dettatura)`,
         ai_extracted_data: { ...rapportoData, testo_originale: testo } as any,
-        ...(commessaId ? { commessa_id: commessaId } : {}),
+        ...(commessaId ? { cm_commessa_id: commessaId } : {}),
       }]);
       if (insertError) throw insertError;
       toast({ title: "PDF rapporto generato con successo" });

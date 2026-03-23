@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { useCommessa } from "@/contexts/CommessaContext";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import {
@@ -53,7 +53,7 @@ const EMPTY_FATTURA = {
   aliquota_iva: 22,
   stato_pagamento: "da_pagare",
   data_scadenza: "",
-  centro_imputazione_id: "",
+  cm_centro_imputazione_id: "",
   note: "",
   cig: "",
   cup: "",
@@ -63,6 +63,7 @@ const EMPTY_FATTURA = {
 };
 
 export default function EconomiaCSSRPage() {
+  const { toast } = useToast();
   const { commessaId } = useCommessa();
   const [fatture, setFatture] = useState<Fattura[]>([]);
   const [centri, setCentri] = useState<CentroImputazione[]>([]);
@@ -124,10 +125,10 @@ export default function EconomiaCSSRPage() {
     if (!commessaId) return;
     setLoading(true);
     const [{ data: f }, { data: c }, { data: d }, { data: cd }] = await Promise.all([
-    supabase.from("fatture").select("*").eq("commessa_id", commessaId).order("data", { ascending: false }),
-    supabase.from("centri_imputazione").select("*").eq("commessa_id", commessaId).eq("sezione", "cssr").order("sort_order"),
-    supabase.from("documents").select("*").eq("commessa_id", commessaId).eq("section", "economia-cssr").order("created_at", { ascending: false }),
-    supabase.from("commessa_data").select("aggio_consorzio, quota_servizi_tecnici").eq("id", commessaId).maybeSingle()]
+    supabase.from("cm_fatture").select("*").eq("cm_commessa_id", commessaId).order("data", { ascending: false }),
+    supabase.from("cm_centri_imputazione").select("*").eq("cm_commessa_id", commessaId).eq("sezione", "cssr").order("sort_order"),
+    supabase.from("cm_documents").select("*").eq("cm_commessa_id", commessaId).eq("section", "economia-cssr").order("created_at", { ascending: false }),
+    supabase.from("cm_commessa_data").select("aggio_consorzio, quota_servizi_tecnici").eq("id", commessaId).maybeSingle()]
     );
     setFatture(f as Fattura[] || []);
     setCentri(c as CentroImputazione[] || []);
@@ -144,7 +145,7 @@ export default function EconomiaCSSRPage() {
   const saveQuote = async (field: "aggio_consorzio" | "quota_servizi_tecnici", value: string) => {
     if (!commessaId) return;
     const num = parseFloat(value) || 0;
-    await supabase.from("commessa_data").update({ [field]: num }).eq("id", commessaId);
+    await supabase.from("cm_commessa_data").update({ [field]: num }).eq("id", commessaId);
   };
 
   const { reanalyze, reanalyzingIds } = useReanalyzeDocument(loadData);
@@ -152,11 +153,11 @@ export default function EconomiaCSSRPage() {
   /* ─── Delete document ─── */
   const handleDeleteDocument = async (doc: any) => {
     if (!confirm("Eliminare questo documento e le fatture associate?")) return;
-    await supabase.storage.from("documents").remove([doc.file_path]);
-    await supabase.from("fatture").delete().eq("file_path", doc.file_path);
-    const { error } = await supabase.from("documents").delete().eq("id", doc.id);
-    if (error) {toast.error("Errore eliminazione documento");return;}
-    toast.success("Documento eliminato");
+    await supabase.storage.from("cm-documents").remove([doc.file_path]);
+    await supabase.from("cm_fatture").delete().eq("file_path", doc.file_path);
+    const { error } = await supabase.from("cm_documents").delete().eq("id", doc.id);
+    if (error) {toast({ title: "Errore eliminazione documento", variant: "destructive" });return;}
+    toast({ title:"Documento eliminato" });
     loadData();
   };
 
@@ -224,7 +225,7 @@ export default function EconomiaCSSRPage() {
     // Persist
     await Promise.all(
       updates.map((c) =>
-        supabase.from("centri_imputazione").update({ sort_order: c.sort_order }).eq("id", c.id)
+        supabase.from("cm_centri_imputazione").update({ sort_order: c.sort_order }).eq("id", c.id)
       )
     );
   };
@@ -265,27 +266,27 @@ export default function EconomiaCSSRPage() {
   const handleSave = async () => {
     if (!commessaId) return;
     const payload = {
-      commessa_id: commessaId,
+      cm_commessa_id: commessaId,
       tipo: form.tipo, numero: form.numero, data: form.data,
       fornitore_cliente: form.fornitore_cliente,
       descrizione: form.descrizione || null,
       importo: form.importo, aliquota_iva: form.aliquota_iva,
       stato_pagamento: form.stato_pagamento,
       data_scadenza: form.data_scadenza || null,
-      centro_imputazione_id: form.centro_imputazione_id || null,
+      cm_centro_imputazione_id: form.cm_centro_imputazione_id || null,
       note: form.note || null, cig: form.cig || null, cup: form.cup || null,
       split_payment: form.split_payment,
       ritenuta_acconto: form.ritenuta_acconto || 0,
       codice_sdi: form.codice_sdi || null
     };
     if (editingId) {
-      const { error } = await supabase.from("fatture").update(payload).eq("id", editingId);
-      if (error) {toast.error("Errore aggiornamento");return;}
-      toast.success("Fattura aggiornata");
+      const { error } = await supabase.from("cm_fatture").update(payload).eq("id", editingId);
+      if (error) {toast({ title: "Errore aggiornamento", variant: "destructive" });return;}
+      toast({ title:"Fattura aggiornata" });
     } else {
-      const { error } = await supabase.from("fatture").insert(payload);
-      if (error) {toast.error("Errore inserimento");return;}
-      toast.success("Fattura inserita");
+      const { error } = await supabase.from("cm_fatture").insert(payload);
+      if (error) {toast({ title: "Errore inserimento", variant: "destructive" });return;}
+      toast({ title:"Fattura inserita" });
     }
     setSheetOpen(false);setEditingId(null);setForm(EMPTY_FATTURA);loadData();
   };
@@ -298,7 +299,7 @@ export default function EconomiaCSSRPage() {
       descrizione: f.descrizione || "", importo: f.importo,
       aliquota_iva: f.aliquota_iva, stato_pagamento: f.stato_pagamento,
       data_scadenza: f.data_scadenza || "",
-      centro_imputazione_id: f.centro_imputazione_id || "",
+      cm_centro_imputazione_id: f.cm_centro_imputazione_id || "",
       note: f.note || "", cig: f.cig || "", cup: f.cup || "",
       split_payment: f.split_payment, ritenuta_acconto: f.ritenuta_acconto || 0,
       codice_sdi: f.codice_sdi || ""
@@ -307,38 +308,38 @@ export default function EconomiaCSSRPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("fatture").delete().eq("id", id);
-    if (error) {toast.error("Errore eliminazione");return;}
-    toast.success("Fattura eliminata");loadData();
+    const { error } = await supabase.from("cm_fatture").delete().eq("id", id);
+    if (error) {toast({ title: "Errore eliminazione", variant: "destructive" });return;}
+    toast({ title:"Fattura eliminata" });loadData();
   };
 
   const handleToggleTipo = async (id: string, newTipo: "acquisto" | "vendita") => {
-    const { error } = await supabase.from("fatture").update({ tipo: newTipo }).eq("id", id);
-    if (error) {toast.error("Errore aggiornamento tipo");return;}
+    const { error } = await supabase.from("cm_fatture").update({ tipo: newTipo }).eq("id", id);
+    if (error) {toast({ title: "Errore aggiornamento tipo", variant: "destructive" });return;}
   };
 
   const handleChangeCentro = async (id: string, centroId: string | null) => {
-    const { error } = await supabase.from("fatture").update({ centro_imputazione_id: centroId, centro_auto_assigned: false }).eq("id", id);
-    if (error) {toast.error("Errore aggiornamento centro");return;}
-    setFatture((prev) => prev.map((f) => f.id === id ? { ...f, centro_imputazione_id: centroId, centro_auto_assigned: false } : f));
-    toast.success("Centro aggiornato");
+    const { error } = await supabase.from("cm_fatture").update({ cm_centro_imputazione_id: centroId, centro_auto_assigned: false }).eq("id", id);
+    if (error) {toast({ title: "Errore aggiornamento centro", variant: "destructive" });return;}
+    setFatture((prev) => prev.map((f) => f.id === id ? { ...f, cm_centro_imputazione_id: centroId, centro_auto_assigned: false } : f));
+    toast({ title:"Centro aggiornato" });
   };
 
   /* ─── Centri CRUD ─── */
   const handleAddCentro = async () => {
     if (!commessaId || !newCentroNome.trim()) return;
-    const { error } = await supabase.from("centri_imputazione").insert({
-      commessa_id: commessaId, nome: newCentroNome.trim(), tipo: newCentroTipo,
+    const { error } = await supabase.from("cm_centri_imputazione").insert({
+      cm_commessa_id: commessaId, nome: newCentroNome.trim(), tipo: newCentroTipo,
       is_default: false, sort_order: centri.length
     });
-    if (error) {toast.error("Errore");return;}
-    toast.success("Centro aggiunto");setNewCentroNome("");loadData();
+    if (error) {toast({ title: "Errore", variant: "destructive" });return;}
+    toast({ title:"Centro aggiunto" });setNewCentroNome("" );loadData();
   };
 
   const handleDeleteCentro = async (id: string) => {
-    const { error } = await supabase.from("centri_imputazione").delete().eq("id", id);
-    if (error) {toast.error("Errore");return;}
-    toast.success("Centro eliminato");loadData();
+    const { error } = await supabase.from("cm_centri_imputazione").delete().eq("id", id);
+    if (error) {toast({ title: "Errore", variant: "destructive" });return;}
+    toast({ title:"Centro eliminato" });loadData();
   };
 
   // filtered for riepilogo
@@ -346,7 +347,7 @@ export default function EconomiaCSSRPage() {
     return fatture.filter((f) => {
       if (filterTipo !== "tutti" && f.tipo !== filterTipo) return false;
       if (filterStato !== "tutti" && f.stato_pagamento !== filterStato) return false;
-      if (filterCentro !== "tutti" && f.centro_imputazione_id !== filterCentro) return false;
+      if (filterCentro !== "tutti" && f.cm_centro_imputazione_id !== filterCentro) return false;
       return true;
     });
   }, [fatture, filterTipo, filterStato, filterCentro]);
@@ -467,9 +468,9 @@ export default function EconomiaCSSRPage() {
       a.download = "economia-cssr.pdf";
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("PDF esportato");
+      toast({ title:"PDF esportato" });
     } catch {
-      toast.error("Errore generazione PDF");
+      toast({ title: "Errore generazione PDF", variant: "destructive" });
     } finally {
       setExporting(false);
     }
@@ -579,7 +580,7 @@ export default function EconomiaCSSRPage() {
                   <div className="space-y-0 flex-1">
                     {centriTipo.map((c) => {
                       const tot = filteredForRiepilogo.
-                      filter((f) => f.centro_imputazione_id === c.id).
+                      filter((f) => f.cm_centro_imputazione_id === c.id).
                       reduce((s, f) => s + Number(f.importo_totale), 0);
                       const isDragging = dragCentroId === c.id;
                       const isDragOver = dragOverCentroId === c.id && dragCentroId !== c.id;
@@ -609,7 +610,7 @@ export default function EconomiaCSSRPage() {
                       {fmtCurrency(
                         centriTipo.reduce((sum, c) =>
                         sum + filteredForRiepilogo.
-                        filter((f) => f.centro_imputazione_id === c.id).
+                        filter((f) => f.cm_centro_imputazione_id === c.id).
                         reduce((s, f) => s + Number(f.importo_totale), 0), 0)
                       )}
                     </span>
@@ -839,7 +840,7 @@ export default function EconomiaCSSRPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Centro di Imputazione</Label>
-                <Select value={form.centro_imputazione_id} onValueChange={(v) => setForm({ ...form, centro_imputazione_id: v })}>
+                <Select value={form.cm_centro_imputazione_id} onValueChange={(v) => setForm({ ...form, cm_centro_imputazione_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Seleziona..." /></SelectTrigger>
                   <SelectContent>
                     {centri.map((c) =>

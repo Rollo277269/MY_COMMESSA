@@ -73,9 +73,9 @@ export function useCronoprogramma() {
     enabled: !!commessaId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .select("*")
-        .eq("commessa_id", commessaId!)
+        .eq("cm_commessa_id", commessaId!)
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return dbToGantt(data as DbPhase[]);
@@ -85,14 +85,14 @@ export function useCronoprogramma() {
   const syncParentDates = async (phaseId: string) => {
     // Find the phase's parent and recalculate parent dates from siblings
     const { data: phase } = await supabase
-      .from("cronoprogramma_phases")
+      .from("cm_cronoprogramma_phases")
       .select("parent_id")
       .eq("id", phaseId)
       .single();
     if (!phase?.parent_id) return;
 
     const { data: siblings } = await supabase
-      .from("cronoprogramma_phases")
+      .from("cm_cronoprogramma_phases")
       .select("start_date, end_date")
       .eq("parent_id", phase.parent_id);
     if (!siblings || siblings.length === 0) return;
@@ -101,7 +101,7 @@ export function useCronoprogramma() {
     const maxEnd = siblings.reduce((max, s) => s.end_date > max ? s.end_date : max, siblings[0].end_date);
 
     await supabase
-      .from("cronoprogramma_phases")
+      .from("cm_cronoprogramma_phases")
       .update({ start_date: minStart, end_date: maxEnd })
       .eq("id", phase.parent_id);
   };
@@ -109,7 +109,7 @@ export function useCronoprogramma() {
   const updatePhase = useMutation({
     mutationFn: async (phase: { id: string; startDate: Date; endDate: Date }) => {
       const { error } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .update({
           start_date: format(phase.startDate, "yyyy-MM-dd"),
           end_date: format(phase.endDate, "yyyy-MM-dd"),
@@ -127,7 +127,7 @@ export function useCronoprogramma() {
   const renamePhase = useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) => {
       const { error } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .update({ name })
         .eq("id", id);
       if (error) throw error;
@@ -143,7 +143,7 @@ export function useCronoprogramma() {
       const today = format(new Date(), "yyyy-MM-dd");
       const endDate = format(new Date(Date.now() + 30 * 86400000), "yyyy-MM-dd");
       const { error } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .insert({
           name,
           parent_id: parentId ?? null,
@@ -151,7 +151,7 @@ export function useCronoprogramma() {
           end_date: endDate,
           progress: 0,
           sort_order: sortOrder,
-          commessa_id: commessaId,
+          cm_commessa_id: commessaId,
         } as any);
       if (error) throw error;
     },
@@ -167,7 +167,7 @@ export function useCronoprogramma() {
   const deletePhase = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .delete()
         .eq("id", id);
       if (error) throw error;
@@ -184,7 +184,7 @@ export function useCronoprogramma() {
   const updateCmeLinks = useMutation({
     mutationFn: async ({ id, cmeRowIds }: { id: string; cmeRowIds: string[] }) => {
       const { error } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .update({ cme_row_ids: cmeRowIds } as any)
         .eq("id", id);
       if (error) throw error;
@@ -201,7 +201,7 @@ export function useCronoprogramma() {
   const updateProgress = useMutation({
     mutationFn: async ({ id, progress }: { id: string; progress: number }) => {
       const { error } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .update({ progress })
         .eq("id", id);
       if (error) throw error;
@@ -216,9 +216,9 @@ export function useCronoprogramma() {
     mutationFn: async ({ id, dependsOn }: { id: string; dependsOn: string[] }) => {
       // [L09] Cycle detection via DFS prima di salvare
       const { data: allPhases } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .select("id, depends_on")
-        .eq("commessa_id", commessaId!);
+        .eq("cm_commessa_id", commessaId!);
 
       if (allPhases) {
         // Costruisci grafo con la dipendenza proposta inclusa
@@ -245,7 +245,7 @@ export function useCronoprogramma() {
       }
 
       const { error } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .update({ depends_on: dependsOn } as any)
         .eq("id", id);
       if (error) throw error;
@@ -262,9 +262,9 @@ export function useCronoprogramma() {
   const reorderPhase = useMutation({
     mutationFn: async ({ id, direction }: { id: string; direction: "up" | "down" }) => {
       const { data: allPhases, error: fetchErr } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .select("id, parent_id, sort_order")
-        .eq("commessa_id", commessaId!)
+        .eq("cm_commessa_id", commessaId!)
         .order("sort_order");
       if (fetchErr) throw fetchErr;
 
@@ -286,7 +286,7 @@ export function useCronoprogramma() {
 
       for (const u of updates) {
         const { error } = await supabase
-          .from("cronoprogramma_phases")
+          .from("cm_cronoprogramma_phases")
           .update({ sort_order: u.sort_order })
           .eq("id", u.id);
         if (error) throw error;
@@ -301,9 +301,9 @@ export function useCronoprogramma() {
   const changeLevel = useMutation({
     mutationFn: async ({ id, action }: { id: string; action: "promote" | "demote"; targetParentId?: string }) => {
       const { data: allPhases, error: fetchErr } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .select("id, parent_id, sort_order")
-        .eq("commessa_id", commessaId!)
+        .eq("cm_commessa_id", commessaId!)
         .order("sort_order");
       if (fetchErr) throw fetchErr;
 
@@ -314,7 +314,7 @@ export function useCronoprogramma() {
         const mainPhases = (allPhases || []).filter((p) => !p.parent_id);
         const maxOrder = mainPhases.length > 0 ? Math.max(...mainPhases.map((p) => p.sort_order)) + 1 : 0;
         const { error } = await supabase
-          .from("cronoprogramma_phases")
+          .from("cm_cronoprogramma_phases")
           .update({ parent_id: null, sort_order: maxOrder })
           .eq("id", id);
         if (error) throw error;
@@ -328,7 +328,7 @@ export function useCronoprogramma() {
         const children = (allPhases || []).filter((p) => p.parent_id === newParent.id);
         const maxChildOrder = children.length > 0 ? Math.max(...children.map((c) => c.sort_order)) + 1 : 0;
         const { error } = await supabase
-          .from("cronoprogramma_phases")
+          .from("cm_cronoprogramma_phases")
           .update({ parent_id: newParent.id, sort_order: maxChildOrder })
           .eq("id", id);
         if (error) throw error;
@@ -346,9 +346,9 @@ export function useCronoprogramma() {
   const movePhase = useMutation({
     mutationFn: async ({ id, newParentId, newSortOrder }: { id: string; newParentId: string | null; newSortOrder: number }) => {
       const { data: allPhases, error: fetchErr } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .select("id, parent_id, sort_order")
-        .eq("commessa_id", commessaId!)
+        .eq("cm_commessa_id", commessaId!)
         .order("sort_order");
       if (fetchErr) throw fetchErr;
 
@@ -373,7 +373,7 @@ export function useCronoprogramma() {
         const updateData: any = { sort_order: u.sort_order };
         if (u.parent_id !== undefined) updateData.parent_id = u.parent_id;
         const { error } = await supabase
-          .from("cronoprogramma_phases")
+          .from("cm_cronoprogramma_phases")
           .update(updateData)
           .eq("id", u.id);
         if (error) throw error;
@@ -397,11 +397,11 @@ export function useCronoprogramma() {
         end_date: p.end_date,
         progress: p.progress ?? 0,
         sort_order: idx,
-        commessa_id: commessaId,
+        cm_commessa_id: commessaId,
       }));
 
       const { data: insertedParents, error: pErr } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .insert(parentRows as any)
         .select("id, sort_order");
       if (pErr) throw pErr;
@@ -417,14 +417,14 @@ export function useCronoprogramma() {
             end_date: s.end_date,
             progress: s.progress ?? 0,
             sort_order: si,
-            commessa_id: commessaId,
+            cm_commessa_id: commessaId,
           });
         });
       });
 
       if (childRows.length > 0) {
         const { error: cErr } = await supabase
-          .from("cronoprogramma_phases")
+          .from("cm_cronoprogramma_phases")
           .insert(childRows);
         if (cErr) throw cErr;
       }
@@ -450,11 +450,11 @@ export function useCronoprogramma() {
         color: p.color ?? null,
         depends_on: [] as string[],
         sort_order: idx,
-        commessa_id: commessaId,
+        cm_commessa_id: commessaId,
       }));
 
       const { data: insertedParents, error: pErr } = await supabase
-        .from("cronoprogramma_phases")
+        .from("cm_cronoprogramma_phases")
         .insert(parentRows as any)
         .select("id, sort_order");
       if (pErr) throw pErr;
@@ -472,14 +472,14 @@ export function useCronoprogramma() {
             color: s.color ?? null,
             depends_on: [],
             sort_order: si,
-            commessa_id: commessaId,
+            cm_commessa_id: commessaId,
           });
         });
       });
 
       if (childRows.length > 0) {
         const { error: cErr } = await supabase
-          .from("cronoprogramma_phases")
+          .from("cm_cronoprogramma_phases")
           .insert(childRows as any);
         if (cErr) throw cErr;
       }

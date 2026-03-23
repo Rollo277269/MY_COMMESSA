@@ -85,8 +85,8 @@ export function RapportoFormSheet({ open, onOpenChange, section, onComplete }: R
     if (!open) return;
     (async () => {
       const [cmeRes, cronoRes] = await Promise.all([
-        supabase.from("cme_rows").select("id, numero, codice, descrizione").order("sort_order"),
-        supabase.from("cronoprogramma_phases").select("id, name").order("sort_order"),
+        supabase.from("cm_cme_rows").select("id, numero, codice, descrizione").order("sort_order"),
+        supabase.from("cm_cronoprogramma_phases").select("id, name").order("sort_order"),
       ]);
       setCmeRows(cmeRes.data || []);
       setCronoPhases(cronoRes.data || []);
@@ -136,11 +136,11 @@ export function RapportoFormSheet({ open, onOpenChange, section, onComplete }: R
       const filePath = `${section}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("documents")
+        .from("cm_documents")
         .upload(filePath, pdfBlob, { contentType: "application/pdf" });
       if (uploadError) throw uploadError;
 
-      const { error: insertError } = await supabase.from("documents").insert([{
+      const { error: insertError } = await supabase.from("cm_documents").insert([{
         file_name: fileName,
         file_path: filePath,
         file_type: "application/pdf",

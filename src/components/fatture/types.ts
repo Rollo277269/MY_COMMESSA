@@ -12,7 +12,7 @@ export interface Fattura {
   importo_incassato: number;
   stato_pagamento: string;
   data_scadenza: string | null;
-  centro_imputazione_id: string | null;
+  cm_centro_imputazione_id: string | null;
   file_path: string | null;
   note: string | null;
   cig: string | null;

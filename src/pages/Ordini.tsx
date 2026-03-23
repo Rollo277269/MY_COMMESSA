@@ -28,7 +28,7 @@ type OrdineAcquisto = {
   data_consegna_prevista: string | null;
   data_consegna_effettiva: string | null;
   note: string | null;
-  commessa_id: string | null;
+  cm_commessa_id: string | null;
   created_at: string;
 };
 
@@ -64,9 +64,9 @@ export default function OrdiniPage() {
     if (!commessaId) return;
     setLoading(true);
     const { data, error } = await supabase
-      .from("ordini_acquisto" as any)
+      .from("cm_ordini_acquisto" as any)
       .select("*")
-      .eq("commessa_id", commessaId)
+      .eq("cm_commessa_id", commessaId)
       .order("created_at", { ascending: false });
     if (!error) setOrdini((data as any[]) || []);
     setLoading(false);
@@ -82,14 +82,14 @@ export default function OrdiniPage() {
     setSaving(true);
     const insertData: any = {
       ...form,
-      commessa_id: commessaId,
+      cm_commessa_id: commessaId,
       importo: Number(form.importo) || 0,
       data_consegna_prevista: form.data_consegna_prevista || null,
       data_consegna_effettiva: form.data_consegna_effettiva || null,
       note: form.note || null,
       descrizione: form.descrizione || null,
     };
-    const { error } = await supabase.from("ordini_acquisto" as any).insert(insertData);
+    const { error } = await supabase.from("cm_ordini_acquisto" as any).insert(insertData);
     if (error) {
       toast({ title: "Errore", description: error.message, variant: "destructive" });
     } else {
@@ -102,7 +102,7 @@ export default function OrdiniPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("ordini_acquisto" as any).delete().eq("id", id);
+    const { error } = await supabase.from("cm_ordini_acquisto" as any).delete().eq("id", id);
     if (error) {
       toast({ title: "Errore", description: error.message, variant: "destructive" });
     } else {

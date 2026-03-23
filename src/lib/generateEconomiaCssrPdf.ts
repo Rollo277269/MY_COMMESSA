@@ -155,8 +155,8 @@ export async function generateEconomiaCssrPdf(data: EconomiaCssrPdfData, logoSrc
     for (let i = 0; i < maxRows; i++) {
       const cr = centriRicavo[i];
       const cc = centriCosto[i];
-      const valR = cr ? data.filteredFatture.filter((f) => f.tipo === "vendita" && f.centro_imputazione_id === cr.id).reduce((s, f) => s + Number(f.importo_totale), 0) : 0;
-      const valC = cc ? data.filteredFatture.filter((f) => f.tipo === "acquisto" && f.centro_imputazione_id === cc.id).reduce((s, f) => s + Number(f.importo_totale), 0) : 0;
+      const valR = cr ? data.filteredFatture.filter((f) => f.tipo === "vendita" && f.cm_centro_imputazione_id === cr.id).reduce((s, f) => s + Number(f.importo_totale), 0) : 0;
+      const valC = cc ? data.filteredFatture.filter((f) => f.tipo === "acquisto" && f.cm_centro_imputazione_id === cc.id).reduce((s, f) => s + Number(f.importo_totale), 0) : 0;
       if (cr) totRicavo += valR;
       if (cc) totCosto += valC;
       tableBody.push([
